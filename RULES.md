@@ -33,7 +33,7 @@ Items marked **(default)** were not asked explicitly. Change them here if they a
 - The player chooses which sets to take, and does not have to take every matching set.
 - Capturing is optional. A player may drift instead, unless they own a build. **(default)**
 - The top card of an opponent's capture pile can **not** be taken by a normal capture.
-- The captured cards plus the played card go onto the player's capture pile, sorted by value with the **lowest on top**. Between equal values, hearts go on top, then diamonds, clubs and spades. **(default)**
+- The captured cards go onto the player's capture pile **in the order they lay on the table**: a build in the order it was built, loose cards in their table order. The **capturing card goes on top**. Nothing is sorted. (Changed 2026-09-28; the original spec sorted the lowest card to the top.)
 - Only a real capture sets `lastCapturePlayerId`. A drift never does.
 
 ## Builds
@@ -42,7 +42,8 @@ Items marked **(default)** were not asked explicitly. Change them here if they a
 - **Strong build**: two or more sets (e.g. [2,5] + [6,1] = 7, or a hand 2 placed on a floor 2 = 2-build).
 - To create or take over a build, the player must still hold a card of the build's value after the move.
 - **Keep a card:** a build owner must always hold a card of the build's value. Their last such card can only be played by capturing that build. It can't be used for another capture, drifted (even in Phase 2), or added to the build.
-- A player can own **only one build at a time**.
+- A player can own **only one build at a time**. If they make or take over another build worth the **same value** as the one they own, the two join into one (strong) build. A build of a different value is refused. (Added 2026-09-28.)
+- While on the table, cards in a build keep the order they were placed in. Nothing is re-sorted.
 - Build values go from 2 to 10.
 
 ### Creating a build
@@ -56,7 +57,7 @@ Items marked **(default)** were not asked explicitly. Change them here if they a
 
 ### An opponent's build
 - **Weak**: you may take it over by either:
-  - raising its value with a card **from your hand only**. Loose table cards can't be added (e.g. 2+5 = 7, add a hand A → 8, while holding an 8). A raised build is still weak, so another player can raise it again, or
+  - raising its value with **one card from your hand, plus any loose table cards** (e.g. 2+4 = 6, add a hand A and a table 2 → 9, while holding a 9). A raised build is still weak, so another player can raise it again, or (changed 2026-09-28; previously the hand card only)
   - adding a same-value set (hand card and/or loose table cards). The build becomes strong.
   In both cases you become the owner.
 - **Strong**: you cannot change it. You can only capture it.

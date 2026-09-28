@@ -1,5 +1,6 @@
 import { useEffect, useState, type ReactNode } from "react";
 import {
+  SOUTH_AFRICAN_CASINO_RULES as RULES,
   calculateScores,
   canDrift,
   findBuild,
@@ -11,9 +12,11 @@ import {
   getPlayer,
   getPlayerIdAfter,
   getPossibleBuildValues,
+  getRaisedValue,
   getStealCardError,
   getTopCard,
   mustDrift,
+  splitIntoGroups,
   type Card,
   type GameState,
   type Move,
@@ -63,6 +66,9 @@ interface Action {
 
 const ACTION_BUTTON =
   "cursor-pointer rounded-lg bg-amber-400 px-6 py-2 font-bold tracking-wide text-emerald-950 shadow transition hover:bg-amber-300 disabled:cursor-wait disabled:opacity-60";
+/** Less eye-catching, for the other choices when several are possible, so the main one is harder to miss. */
+const OTHER_ACTION_BUTTON =
+  "cursor-pointer rounded-lg border-2 border-amber-400 px-6 py-2 font-bold tracking-wide text-amber-300 transition hover:bg-amber-400/10 disabled:cursor-wait disabled:opacity-60";
 const HEADER_BUTTON = "cursor-pointer rounded-lg border border-white/20 px-3 py-1.5 text-sm hover:bg-white/10";
 
 /** The moves the current selection allows. The engine decides what is legal; this only asks it. */
@@ -101,14 +107,14 @@ function getActions(state: GameState, playerId: string, selection: Selection): A
   }
 
   if (buildIds.length === 1) {
-    const addToBuild: Move = { action: "ADD_TO_BUILD", cardId, buildId: buildIds[0], tableCardIds };
+    const build = findBuild(state, buildIds[0])!;
+    const addToBuild: Move = { action: "ADD_TO_BUILD", cardId, buildId: build.id, tableCardIds };
     if (isLegal(addToBuild)) {
       actions.push({ label: "ADD TO BUILD", move: addToBuild });
     }
-    const raise: Move = { action: "RAISE_BUILD", cardId, buildId: buildIds[0] };
-    if (tableCardIds.length === 0 && isLegal(raise)) {
-      const newValue = findBuild(state, buildIds[0])!.value + handCard.value;
-      actions.push({ label: `RAISE TO ${newValue}`, move: raise });
+    const raise: Move = { action: "RAISE_BUILD", cardId, buildId: build.id, tableCardIds };
+    if (isLegal(raise)) {
+      actions.push({ label: `RAISE TO ${getRaisedValue(state, build, handCard, tableCardIds)}`, move: raise });
     }
   }
   return actions;
@@ -140,13 +146,22 @@ function describeSelection(state: GameState, playerId: string, selection: Select
     return "Choose what to do with the selected cards.";
   }
   // Nothing is possible: explain using the rule that most likely applies.
-  const build = buildIds.length === 1 ? findBuild(state, buildIds[0]) : undefined;
   let attempted: Move = { action: "CAPTURE", cardId, tableCardIds, buildIds };
+  const build = buildIds.length === 1 ? findBuild(state, buildIds[0]) : undefined;
   if (build && handCard.value !== build.value) {
+    // A different value: they're adding to their own build, or raising someone else's.
     attempted =
-      tableCardIds.length === 0
-        ? { action: "RAISE_BUILD", cardId, buildId: build.id }
-        : { action: "ADD_TO_BUILD", cardId, buildId: build.id, tableCardIds };
+      build.ownerId === playerId
+        ? { action: "ADD_TO_BUILD", cardId, buildId: build.id, tableCardIds }
+        : { action: "RAISE_BUILD", cardId, buildId: build.id, tableCardIds };
+  }
+  if (buildIds.length === 0) {
+    // Table cards that can't be captured with this card are probably meant for a build.
+    const looseCards = state.tableCards.filter((card) => tableCardIds.includes(card.id));
+    const buildValue = handCard.value + looseCards.reduce((sum, card) => sum + card.value, 0);
+    if (!splitIntoGroups(looseCards, handCard.value) && buildValue <= RULES.maxBuildValue) {
+      attempted = { action: "BUILD", cardId, tableCardIds, value: buildValue };
+    }
   }
   return getMoveError(state, playerId, attempted) ?? "";
 }
@@ -346,12 +361,12 @@ export function GameScreen({
                       )}
                       {actions.length > 0 && (
                         <div className="flex flex-wrap justify-center gap-2">
-                          {actions.map((action) => (
+                          {actions.map((action, index) => (
                             <button
                               key={action.label}
                               type="button"
                               disabled={sending}
-                              className={ACTION_BUTTON}
+                              className={index === 0 ? ACTION_BUTTON : OTHER_ACTION_BUTTON}
                               onClick={() => void play(action.move)}
                             >
                               {action.label}

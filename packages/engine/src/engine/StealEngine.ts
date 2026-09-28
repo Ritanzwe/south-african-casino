@@ -4,16 +4,10 @@ import type { GameState } from "../models/GameState";
 import { findBuild } from "../rules/BuildRules";
 import { findCapturePileOwnerId, getStealError } from "../rules/StealRules";
 import { getLooseCards } from "../rules/TableRules";
+import { claimBuild, describeTakeOver } from "./BuildEngine";
 import { getTopCard } from "./CapturePile";
 import { IllegalMoveError } from "./IllegalMoveError";
-import {
-  addLogEntry,
-  findCardInHand,
-  getPlayer,
-  replaceBuild,
-  takeCardFromHand,
-  takeTableCards,
-} from "./stateHelpers";
+import { addLogEntry, findCardInHand, getPlayer, takeCardFromHand, takeTableCards } from "./stateHelpers";
 import { endTurn } from "./TurnManager";
 
 /**
@@ -42,10 +36,11 @@ export function stealIntoBuild(
   const playedCard = findCardInHand(state, playerId, cardId)!;
   const victimId = findCapturePileOwnerId(state, stolenCardId)!;
   const stolenCard = getTopCard(state.capturePiles[victimId])!;
-  const newSets = splitIntoGroups([playedCard, stolenCard, ...getLooseCards(state, tableCardIds)], build.value)!;
+  // The table cards were there first; then the played card, then the stolen card on top.
+  const newSets = splitIntoGroups([...getLooseCards(state, tableCardIds), playedCard, stolenCard], build.value)!;
 
   const afterSteal: GameState = {
-    ...replaceBuild(takeTableCards(takeCardFromHand(state, playerId, cardId), tableCardIds), {
+    ...claimBuild(takeTableCards(takeCardFromHand(state, playerId, cardId), tableCardIds), playerId, {
       ...build,
       sets: [...build.sets, ...newSets],
       ownerId: playerId,
@@ -53,10 +48,10 @@ export function stealIntoBuild(
     capturePiles: { ...state.capturePiles, [victimId]: state.capturePiles[victimId].slice(0, -1) },
   };
 
-  const isOwnBuild = build.ownerId === playerId;
-  const buildText = isOwnBuild
-    ? `their build of ${build.value}`
-    : `${getPlayer(state, build.ownerId).name}'s build of ${build.value} and took it over`;
+  const buildText =
+    build.ownerId === playerId
+      ? `their build of ${build.value}`
+      : `${getPlayer(state, build.ownerId).name}'s build of ${build.value} ${describeTakeOver(state, playerId, buildId)}`;
   const message = `${player.name} stole ${formatCard(stolenCard)} from ${getPlayer(state, victimId).name}'s capture pile and added ${formatGroups(newSets)} to ${buildText}.`;
   return endTurn(addLogEntry(afterSteal, message, playerId));
 }

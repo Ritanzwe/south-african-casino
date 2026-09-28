@@ -107,8 +107,8 @@ export function Rules({ onClose }: RulesProps) {
               <b>Add to a build:</b> add a new set of the same value to your build, e.g. 6 + 2 onto a build of 8.
             </li>
             <li>
-              <b>Raise:</b> add one card from your hand to an opponent's weak build, e.g. their 7 + your A = 8 while
-              you hold an 8. The build becomes yours.
+              <b>Raise:</b> add one card from your hand (plus table cards, if you like) to an opponent's weak build,
+              e.g. their 6 + your A + a table 2 = 9 while you hold a 9. The build becomes yours.
             </li>
             <li>
               <b>Steal:</b> take the top card of another player's capture pile and add it, together with a card from
@@ -127,7 +127,10 @@ export function Rules({ onClose }: RulesProps) {
               Opponents can raise a weak build or add a set to it, and then they own it. A strong build can only be
               captured.
             </li>
-            <li>You can own one build at a time.</li>
+            <li>
+              You can own one build at a time. If you make or take over another build worth the same as yours, the
+              two join into one.
+            </li>
             <li>
               While you own a build you can't drift (except in Phase 2 of a 2-player game), and you must always keep a
               card of its value. Your last one can only be played to capture the build.
@@ -137,8 +140,9 @@ export function Rules({ onClose }: RulesProps) {
 
         <Section title="Capture piles">
           <p>
-            Captured cards go face up on your pile, lowest card on top. Only the top card of a pile can ever be
-            taken, and only by stealing it into a build.
+            Captured cards go face up on your pile in the order they lay on the table (a build in the order it was
+            built), with your capturing card on top. Only the top card of a pile can ever be taken, and only by
+            stealing it into a build.
           </p>
         </Section>
 

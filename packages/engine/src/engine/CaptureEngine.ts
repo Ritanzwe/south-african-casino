@@ -12,8 +12,8 @@ import { endTurn } from "./TurnManager";
  * CAPTURE: the player plays a card from their hand and takes loose table cards that add up
  * to it (in one group or several, e.g. an 8 takes 8 and 5 + 3) and/or builds of the same value.
  *
- * The played card and everything captured go on top of the player's capture pile, lowest
- * card on top. The player becomes the last capturer, and the turn ends.
+ * Everything captured goes onto the player's capture pile in the order it lay on the table,
+ * with the capturing card on top. The player becomes the last capturer, and the turn ends.
  * Returns a new state; the state passed in is not changed.
  */
 export function captureCards(
@@ -40,7 +40,7 @@ export function captureCards(
     builds: state.builds.filter((build) => !buildIds.includes(build.id)),
     capturePiles: {
       ...state.capturePiles,
-      [playerId]: addToCapturePile(state.capturePiles[playerId], [playedCard, ...looseCards, ...buildCards]),
+      [playerId]: addToCapturePile(state.capturePiles[playerId], [...buildCards, ...looseCards], playedCard),
     },
     lastCapturePlayerId: playerId,
   };

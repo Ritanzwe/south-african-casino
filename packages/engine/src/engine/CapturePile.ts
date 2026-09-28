@@ -1,13 +1,12 @@
-import { compareCards, type Card } from "../cards/Card";
+import type { Card } from "../cards/Card";
 
 /**
- * Puts newly captured cards on top of a capture pile, in number order with the
- * LOWEST card on top. (The end of the array is the top of the pile.)
- * The order never depends on the order the cards were selected in.
+ * Puts captured cards on top of a capture pile. They keep the order they lay in on the table
+ * (a build in the order it was built), and the capturing card goes on top of them.
+ * The end of the array is the top of the pile.
  */
-export function addToCapturePile(pile: readonly Card[], captured: readonly Card[]): Card[] {
-  const highestFirst = [...captured].sort((a, b) => compareCards(b, a));
-  return [...pile, ...highestFirst];
+export function addToCapturePile(pile: readonly Card[], capturedCards: readonly Card[], capturingCard?: Card): Card[] {
+  return [...pile, ...capturedCards, ...(capturingCard ? [capturingCard] : [])];
 }
 
 /** The top card of a capture pile, the only card other players can ever reach. */

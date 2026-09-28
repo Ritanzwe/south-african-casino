@@ -126,10 +126,17 @@ describe("an invalid capture", () => {
 });
 
 describe("the capture pile", () => {
-  it("receives the captured cards and the played card, lowest card on top", () => {
+  it("receives the captured cards in the order they lay, with the capturing card on top", () => {
     const next = captureCards(scenario({ p1: "7C 2C" }, "2S 5H"), "p1", "7-clubs", ["2-spades", "5-hearts"]);
-    expect(ids(next.capturePiles.p1)).toEqual(["7-clubs", "5-hearts", "2-spades"]);
-    expect(getTopCard(next.capturePiles.p1)?.id).toBe("2-spades");
+    expect(ids(next.capturePiles.p1)).toEqual(["2-spades", "5-hearts", "7-clubs"]);
+    expect(getTopCard(next.capturePiles.p1)?.id).toBe("7-clubs");
+  });
+
+  it("doesn't sort the captured cards", () => {
+    const highFirst = captureCards(scenario({ p1: "9S 2C" }, "5H 4C"), "p1", "9-spades", ["5-hearts", "4-clubs"]);
+    const lowFirst = captureCards(scenario({ p1: "9S 2C" }, "4C 5H"), "p1", "9-spades", ["5-hearts", "4-clubs"]);
+    expect(ids(highFirst.capturePiles.p1)).toEqual(["5-hearts", "4-clubs", "9-spades"]);
+    expect(ids(lowFirst.capturePiles.p1)).toEqual(["4-clubs", "5-hearts", "9-spades"]);
   });
 
   it("orders the cards the same way whatever order they were selected in", () => {
@@ -144,12 +151,7 @@ describe("the capture pile", () => {
     state = captureCards(state, "p1", "7-clubs", ["2-spades", "5-hearts"]);
     state = drift(state, "p2", "9-hearts");
     state = captureCards(state, "p1", "3-clubs", ["3-diamonds"]);
-    expect(ids(state.capturePiles.p1)).toEqual(["7-clubs", "5-hearts", "2-spades", "3-clubs", "3-diamonds"]);
-  });
-
-  it("puts hearts on top between cards of equal value", () => {
-    const next = captureCards(scenario({ p1: "4S 2C" }, "4H"), "p1", "4-spades", ["4-hearts"]);
-    expect(ids(next.capturePiles.p1)).toEqual(["4-spades", "4-hearts"]);
+    expect(ids(state.capturePiles.p1)).toEqual(["2-spades", "5-hearts", "7-clubs", "3-diamonds", "3-clubs"]);
   });
 
   it("only changes the capturing player's pile", () => {
@@ -157,12 +159,13 @@ describe("the capture pile", () => {
     expect(next.capturePiles.p2).toEqual([]);
   });
 
-  it("addToCapturePile adds cards on top without touching the cards below", () => {
-    expect(ids(addToCapturePile(cards("10D"), cards("2S 8D 5H")))).toEqual([
+  it("addToCapturePile adds cards on top, capturing card last, without touching the cards below", () => {
+    expect(ids(addToCapturePile(cards("10D"), cards("2S 8D 5H"), cards("9C")[0]))).toEqual([
       "10-diamonds",
+      "2-spades",
       "8-diamonds",
       "5-hearts",
-      "2-spades",
+      "9-clubs",
     ]);
   });
 

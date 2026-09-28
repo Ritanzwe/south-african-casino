@@ -39,7 +39,7 @@ export function parseMove(input: unknown): Move | null {
     case "ADD_TO_BUILD":
       return isId(move.buildId) ? { action: "ADD_TO_BUILD", cardId, buildId: move.buildId, tableCardIds } : null;
     case "RAISE_BUILD":
-      return isId(move.buildId) ? { action: "RAISE_BUILD", cardId, buildId: move.buildId } : null;
+      return isId(move.buildId) ? { action: "RAISE_BUILD", cardId, buildId: move.buildId, tableCardIds } : null;
     case "STEAL":
       return isId(move.buildId) && isId(move.stolenCardId)
         ? { action: "STEAL", cardId, buildId: move.buildId, stolenCardId: move.stolenCardId, tableCardIds }

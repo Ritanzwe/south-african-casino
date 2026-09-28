@@ -135,7 +135,7 @@ export function getMoveError(state: GameState, playerId: string, move: Move): st
     case "ADD_TO_BUILD":
       return getAddToBuildError(state, playerId, move.cardId, move.buildId, move.tableCardIds);
     case "RAISE_BUILD":
-      return getRaiseBuildError(state, playerId, move.cardId, move.buildId);
+      return getRaiseBuildError(state, playerId, move.cardId, move.buildId, move.tableCardIds);
     case "STEAL":
       return getStealError(state, playerId, move.cardId, move.buildId, move.stolenCardId, move.tableCardIds);
     default:
@@ -199,7 +199,13 @@ function candidateMoves(state: GameState, playerId: string): Move[] {
           moves.push({ action: "ADD_TO_BUILD", cardId: card.id, buildId: build.id, tableCardIds: ids(group) });
         }
       }
+      // Raise with the card alone, or with loose cards on top of it.
       moves.push({ action: "RAISE_BUILD", cardId: card.id, buildId: build.id });
+      for (let extra = 1; build.value + card.value + extra <= RULES.maxBuildValue; extra++) {
+        for (const group of findGroupsAddingUpTo(state.tableCards, extra)) {
+          moves.push({ action: "RAISE_BUILD", cardId: card.id, buildId: build.id, tableCardIds: ids(group) });
+        }
+      }
 
       // Steal another player's top card into the build: with this card in the same set
       // (hand 7 + stolen A = 8), or with this card as its own set (hand 8, and stolen A + loose 7).
@@ -248,7 +254,7 @@ export function applyMove(state: GameState, playerId: string, move: Move): GameS
     case "ADD_TO_BUILD":
       return addToBuild(state, playerId, move.cardId, move.buildId, move.tableCardIds);
     case "RAISE_BUILD":
-      return raiseBuild(state, playerId, move.cardId, move.buildId);
+      return raiseBuild(state, playerId, move.cardId, move.buildId, move.tableCardIds);
     case "STEAL":
       return stealIntoBuild(state, playerId, move.cardId, move.buildId, move.stolenCardId, move.tableCardIds);
     default:

@@ -7,7 +7,6 @@ import { SOUTH_AFRICAN_CASINO_RULES as RULES } from "./SouthAfricanCasinoRules";
 import { getLooseCards, getLooseCardsError } from "./TableRules";
 import { getTurnError } from "./TurnRules";
 
-const ONE_BUILD_ONLY = "You already own a build, and you can only own one at a time.";
 const STRONG_BUILD = "That build is strong, so it can't be changed. It can only be captured.";
 
 /** "an 8", "a 7" and so on, for messages. */
@@ -35,6 +34,19 @@ export function ownsBuild(state: GameState, playerId: string): boolean {
 /** A weak build is still its original single set. A strong build has two or more sets. */
 export function isStrongBuild(build: Build): boolean {
   return build.sets.length > 1;
+}
+
+/**
+ * A player owns one build at a time. They may still make or take over another build if it ends
+ * up worth the same as the one they own: the two then join into one build.
+ * Returns a message if the new build can't be theirs, or null if it can.
+ */
+function getSecondBuildError(state: GameState, playerId: string, newBuildValue: number): string | null {
+  const own = getOwnedBuild(state, playerId);
+  if (!own || own.value === newBuildValue) {
+    return null;
+  }
+  return `You already own a build of ${own.value}. Another build must also be worth ${own.value}, and then the two join into one.`;
 }
 
 /** Will the player still hold a card of this value after playing `playedCardId`? */
@@ -67,7 +79,8 @@ export function getKeepCardError(
  * Explains why this new build isn't allowed, or returns null if it is.
  * The hand card and the chosen loose table cards must form sets that each add up to `value`
  * (one set like 3 + 5, or several like 3 + 5 and 8), and the player must still hold a card
- * of that value afterwards to capture the build later.
+ * of that value afterwards to capture the build later. If the player already owns a build
+ * of the same value, the new sets join it.
  */
 export function getCreateBuildError(
   state: GameState,
@@ -84,9 +97,6 @@ export function getCreateBuildError(
   if (!playedCard) {
     return "That card is not in your hand.";
   }
-  if (ownsBuild(state, playerId)) {
-    return ONE_BUILD_ONLY;
-  }
   if (tableCardIds.length === 0) {
     return "Choose the table cards you want to build with.";
   }
@@ -97,7 +107,11 @@ export function getCreateBuildError(
   if (!Number.isInteger(value) || value < 2 || value > RULES.maxBuildValue) {
     return `A build must be worth between 2 and ${RULES.maxBuildValue}.`;
   }
-  if (!splitIntoGroups([playedCard, ...getLooseCards(state, tableCardIds)], value)) {
+  const secondBuildError = getSecondBuildError(state, playerId, value);
+  if (secondBuildError) {
+    return secondBuildError;
+  }
+  if (!splitIntoGroups([...getLooseCards(state, tableCardIds), playedCard], value)) {
     return `Those cards don't make a build of ${value}. Every set in a build must add up to ${value}.`;
   }
   if (!keepsValueAfterPlaying(getPlayer(state, playerId).hand, cardId, value)) {
@@ -136,7 +150,7 @@ export function getPossibleBuildValues(
  * Explains why these cards can't be added to the build, or returns null if they can.
  * The hand card (with any chosen loose cards) must form new sets that each add up to the
  * build's value. You can add to your own build, or to an opponent's weak build, which you
- * then take over.
+ * then take over (joining it to your own build if that has the same value).
  */
 export function getAddToBuildError(
   state: GameState,
@@ -180,11 +194,12 @@ export function getNewSetsError(
     if (isStrongBuild(build)) {
       return STRONG_BUILD;
     }
-    if (ownsBuild(state, playerId)) {
-      return ONE_BUILD_ONLY;
+    const secondBuildError = getSecondBuildError(state, playerId, build.value);
+    if (secondBuildError) {
+      return secondBuildError;
     }
   }
-  if (!splitIntoGroups([playedCard, ...newCards], build.value)) {
+  if (!splitIntoGroups([...newCards, playedCard], build.value)) {
     return `Every set you add to this build must add up to ${build.value}.`;
   }
   if (!keepsValueAfterPlaying(getPlayer(state, playerId).hand, playedCard.id, build.value)) {
@@ -205,10 +220,17 @@ export function canAddToBuild(
 
 /**
  * Explains why the player can't raise this build, or returns null if they can.
- * Only an opponent's weak build can be raised, with one card from the hand and no table cards.
- * The raiser takes the build over, so they must hold a card of the new value.
+ * Only an opponent's weak build can be raised: with one card from the hand, plus any loose
+ * table cards. The raiser takes the build over (joining it to their own build if that ends up
+ * the same value), so they must hold a card of the new value.
  */
-export function getRaiseBuildError(state: GameState, playerId: string, cardId: string, buildId: string): string | null {
+export function getRaiseBuildError(
+  state: GameState,
+  playerId: string,
+  cardId: string,
+  buildId: string,
+  tableCardIds: readonly string[] = [],
+): string | null {
   const turnError = getTurnError(state, playerId);
   if (turnError) {
     return turnError;
@@ -227,12 +249,17 @@ export function getRaiseBuildError(state: GameState, playerId: string, cardId: s
   if (isStrongBuild(build)) {
     return STRONG_BUILD;
   }
-  if (ownsBuild(state, playerId)) {
-    return ONE_BUILD_ONLY;
+  const looseError = getLooseCardsError(state, tableCardIds);
+  if (looseError) {
+    return looseError;
   }
-  const newValue = build.value + playedCard.value;
+  const newValue = getRaisedValue(state, build, playedCard, tableCardIds);
   if (newValue > RULES.maxBuildValue) {
     return `A build can't be worth more than ${RULES.maxBuildValue}.`;
+  }
+  const secondBuildError = getSecondBuildError(state, playerId, newValue);
+  if (secondBuildError) {
+    return secondBuildError;
   }
   if (!keepsValueAfterPlaying(getPlayer(state, playerId).hand, cardId, newValue)) {
     return `You need to keep ${valueWithArticle(newValue)} in your hand to capture this build.`;
@@ -240,6 +267,18 @@ export function getRaiseBuildError(state: GameState, playerId: string, cardId: s
   return null;
 }
 
-export function canRaiseBuild(state: GameState, playerId: string, cardId: string, buildId: string): boolean {
-  return getRaiseBuildError(state, playerId, cardId, buildId) === null;
+/** What a build would be worth after raising it with this hand card and these loose table cards. */
+export function getRaisedValue(state: GameState, build: Build, playedCard: Card, tableCardIds: readonly string[]): number {
+  const looseTotal = getLooseCards(state, tableCardIds).reduce((sum, card) => sum + card.value, 0);
+  return build.value + playedCard.value + looseTotal;
+}
+
+export function canRaiseBuild(
+  state: GameState,
+  playerId: string,
+  cardId: string,
+  buildId: string,
+  tableCardIds: readonly string[] = [],
+): boolean {
+  return getRaiseBuildError(state, playerId, cardId, buildId, tableCardIds) === null;
 }

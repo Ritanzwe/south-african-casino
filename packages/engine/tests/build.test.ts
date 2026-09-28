@@ -34,13 +34,13 @@ describe("creating a build", () => {
 
   it("can pair equal cards: a hand 2 on a loose 2 is a strong build of 2", () => {
     const next = createBuild(scenario({ p1: "2H 2S" }, "2C"), "p1", "2-hearts", ["2-clubs"], 2);
-    expect(next.builds[0].sets).toEqual([cards("2H"), cards("2C")]);
+    expect(next.builds[0].sets).toEqual([cards("2C"), cards("2H")]);
     expect(isStrongBuild(next.builds[0])).toBe(true);
   });
 
   it("can make the same cards a build of 4 instead, for a player holding a 4", () => {
     const next = createBuild(scenario({ p1: "2H 4S" }, "2C"), "p1", "2-hearts", ["2-clubs"], 4);
-    expect(next.builds[0].sets).toEqual([cards("2H 2C")]);
+    expect(next.builds[0].sets).toEqual([cards("2C 2H")]);
   });
 
   it("lists every value the chosen cards could be built into", () => {
@@ -50,7 +50,7 @@ describe("creating a build", () => {
 
   it("is strong from the start when it has two sets (3 + 5, and 8)", () => {
     const next = createBuild(scenario({ p1: "3H 8S" }, "5C 8D"), "p1", "3-hearts", ["5-clubs", "8-diamonds"], 8);
-    expect(next.builds[0].sets).toEqual([cards("8D"), cards("5C 3H")]);
+    expect(next.builds[0].sets).toEqual([cards("5C 3H"), cards("8D")]);
     expect(isStrongBuild(next.builds[0])).toBe(true);
   });
 
@@ -101,10 +101,10 @@ describe("creating a build", () => {
     expect(() => createBuild(state, "p1", cardId, tableCardIds, value)).toThrow(message);
   });
 
-  it("is not allowed when the player already owns a build", () => {
+  it("is not allowed when the player already owns a build of another value", () => {
     const state = { ...scenario({ p1: "3H 8S 9C" }, "5C"), builds: [makeBuild("p1", ["6D 3S"])] };
     expect(() => createBuild(state, "p1", "3-hearts", ["5-clubs"], 8)).toThrow(
-      "You already own a build, and you can only own one at a time.",
+      "You already own a build of 9. Another build must also be worth 9, and then the two join into one.",
     );
   });
 });
@@ -115,10 +115,10 @@ describe("adding to your own build", () => {
 
   it("adds a new set of a hand card and a loose card (6 + 2), making the build strong", () => {
     const next = addToBuild(state, "p1", "6-hearts", "build-p1", ["2-clubs"]);
-    expect(next.builds[0].sets).toEqual([cards("5S 3S"), cards("6H 2C")]);
+    expect(next.builds[0].sets).toEqual([cards("5S 3S"), cards("2C 6H")]);
     expect(next.builds[0].ownerId).toBe("p1");
     expect(isStrongBuild(next.builds[0])).toBe(true);
-    expect(next.log.at(-1)?.message).toBe("Player 1 added 6♥ + 2♣ to their build of 8.");
+    expect(next.log.at(-1)?.message).toBe("Player 1 added 2♣ + 6♥ to their build of 8.");
   });
 
   it("adds a matching card on its own while the owner keeps another", () => {
@@ -170,10 +170,10 @@ describe("an opponent's weak build", () => {
 
   it("can take a new set of the same value, and the player takes it over (now strong)", () => {
     const next = addToBuild(state, "p1", "4-hearts", "build-p2", ["3-clubs"]);
-    expect(next.builds[0].sets).toEqual([cards("2S 5S"), cards("4H 3C")]);
+    expect(next.builds[0].sets).toEqual([cards("2S 5S"), cards("3C 4H")]);
     expect(next.builds[0].ownerId).toBe("p1");
     expect(isStrongBuild(next.builds[0])).toBe(true);
-    expect(next.log.at(-1)?.message).toBe("Player 1 added 4♥ + 3♣ to Player 2's build of 7 and took it over.");
+    expect(next.log.at(-1)?.message).toBe("Player 1 added 3♣ + 4♥ to Player 2's build of 7 and took it over.");
   });
 
   it("can't be raised by a player without a card of the new value", () => {
@@ -186,10 +186,10 @@ describe("an opponent's weak build", () => {
     expect(() => raiseBuild(state, "p1", "4-hearts", "build-p2")).toThrow("A build can't be worth more than 10.");
   });
 
-  it("can't be taken by a player who already owns a build", () => {
+  it("can't be taken by a player who already owns a build of another value", () => {
     const alreadyOwns = { ...state, builds: [...state.builds, makeBuild("p1", ["6D 3S"])] };
     expect(() => raiseBuild(alreadyOwns, "p1", "A-hearts", "build-p2")).toThrow(
-      "You already own a build, and you can only own one at a time.",
+      "You already own a build of 9. Another build must also be worth 9, and then the two join into one.",
     );
   });
 });
@@ -217,7 +217,7 @@ describe("capturing a build", () => {
     const next = captureCards(state, "p1", "8-spades", [], ["build-p2"]);
 
     expect(next.builds).toEqual([]);
-    expect(ids(next.capturePiles.p1)).toEqual(["8-spades", "5-hearts", "3-clubs"]);
+    expect(ids(next.capturePiles.p1)).toEqual(["5-hearts", "3-clubs", "8-spades"]);
     expect(next.lastCapturePlayerId).toBe("p1");
     expect(next.log.at(-1)?.message).toBe("Player 1 captured Player 2's build of 8 (5♥ + 3♣) with 8♠.");
   });

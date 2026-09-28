@@ -14,7 +14,7 @@ function joinNames(names: string[]): string {
  * If nobody captured anything all game, the cards stay where they are.
  */
 export function awardRemainingTableCards(state: GameState): GameState {
-  const remaining = [...state.tableCards, ...state.builds.flatMap((build) => build.sets.flat())];
+  const remaining = [...state.builds.flatMap((build) => build.sets.flat()), ...state.tableCards];
   if (remaining.length === 0) {
     return state;
   }

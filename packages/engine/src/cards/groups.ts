@@ -30,6 +30,9 @@ export function findGroupsAddingUpTo(cards: readonly Card[], value: number): Car
  * Splits cards into groups that each add up to `value`, using every card once.
  * Returns the groups, or null if that can't be done.
  * e.g. value 8: [8, 5, 3] → [[8], [5, 3]], but [5, 4] → null.
+ *
+ * Nothing is re-sorted: cards keep the order they were given in (the order they lie on the
+ * table, or were placed), and the groups are ordered by where their first card was.
  */
 export function splitIntoGroups(cards: readonly Card[], value: number): Card[][] | null {
   const total = cards.reduce((sum, card) => sum + card.value, 0);
@@ -47,11 +50,15 @@ export function splitIntoGroups(cards: readonly Card[], value: number): Card[][]
     return null;
   }
 
-  // Swap each value back for a real card of that value.
+  // Swap each value back for a real card of that value, then put the cards back in their original order.
   const unused = [...cards];
-  return valueGroups.map((group) =>
+  const groups = valueGroups.map((group) =>
     group.map((groupValue) => unused.splice(unused.findIndex((card) => card.value === groupValue), 1)[0]),
   );
+  const position = (card: Card) => cards.indexOf(card);
+  return groups
+    .map((group) => [...group].sort((a, b) => position(a) - position(b)))
+    .sort((a, b) => position(a[0]) - position(b[0]));
 }
 
 /** Text for groups of cards, e.g. "8♥ and 5♣ + 3♦". */

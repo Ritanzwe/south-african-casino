@@ -33,7 +33,7 @@ describe("stealing into your own build", () => {
 
   it("can combine the stolen card with loose cards, adding a matching hand card as its own set", () => {
     const next = stealIntoBuild(setUp(), "p1", "8-spades", "build-p1", "A-spades", ["7-clubs"]);
-    expect(next.builds[0].sets).toEqual([cards("5S 3S"), cards("8S"), cards("7C AS")]);
+    expect(next.builds[0].sets).toEqual([cards("5S 3S"), cards("7C AS"), cards("8S")]);
     expect(next.tableCards).toEqual([]);
   });
 

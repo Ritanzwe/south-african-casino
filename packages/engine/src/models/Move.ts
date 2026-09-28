@@ -15,7 +15,7 @@ export type Move =
   | { action: "BUILD"; cardId: string; tableCardIds: string[]; value: number }
   /** Add new sets of the same value (`cardId` plus any loose table cards) to a build. */
   | { action: "ADD_TO_BUILD"; cardId: string; buildId: string; tableCardIds: string[] }
-  /** Raise an opponent's weak build by adding `cardId` to it. */
-  | { action: "RAISE_BUILD"; cardId: string; buildId: string }
+  /** Raise an opponent's weak build by adding `cardId` (and any loose table cards) to it. */
+  | { action: "RAISE_BUILD"; cardId: string; buildId: string; tableCardIds?: string[] }
   /** Take the top card of another player's capture pile and add it, `cardId` and any loose cards to a build. */
   | { action: "STEAL"; cardId: string; buildId: string; stolenCardId: string; tableCardIds: string[] };

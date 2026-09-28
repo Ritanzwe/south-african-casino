@@ -59,11 +59,20 @@ Mark items with `[x]` when done.
   - [x] Private rooms with a link/code, guest names, seat kept after a refresh, host controls, bots on the server, host can hand a departed player's seat to a bot
   - [x] Client: create/join on the start screen, room lobby, online game on the same table as local games
   - [x] Tests: room rules + full online games over real sockets; production server checked end to end
-  - [ ] Put it online with Render (needs your GitHub and Render accounts) ← next
+  - [x] Code on GitHub: https://github.com/Ritanzwe/south-african-casino (pushes over SSH from this PC)
+  - [ ] Put it online with Render (needs your Render account) ← next
   - [ ] Keep games in MongoDB so they survive restarts (planned with Stage 19)
 - [ ] Stage 18 — Authentication & profiles
 - [ ] Stage 19 — Game history
 - [ ] Stage 20 — Animations, sound, mobile polish
+
+## Bug fixes
+- [x] 2026-09-28 bug report (tests in `packages/engine/tests/bugReport.test.ts`)
+  - [x] Bug 1: taking over an opponent's build that ends up the same value as your own build joins them into one
+  - [x] Bug 2: clear message when a build isn't allowed (e.g. "You need to keep a 9…") instead of a capture error
+  - [x] Bug 3: captured cards keep the order they lay in, capturing card on top; builds keep their placement order
+  - [x] Bug 4 / Test 5: raising an opponent's weak build can include floor cards
+  - [x] Main action button stands out from the others, to avoid e.g. ADD TO BUILD by mistake
 
 ## Open questions (ask before the stage that needs them)
 - None right now.

@@ -21,7 +21,7 @@ describe("the end of the hand", () => {
   it("gives the cards left on the table to the last player who captured", () => {
     const state = playToTheEnd();
     expect(state.tableCards).toEqual([]);
-    expect(ids(state.capturePiles.p1)).toEqual(["8-spades", "8-hearts", "5-clubs", "4-diamonds", "3-clubs"]);
+    expect(ids(state.capturePiles.p1)).toEqual(["8-hearts", "8-spades", "3-clubs", "4-diamonds", "5-clubs"]);
   });
 
   it("doesn't count the drifts that came after as the last capture", () => {
