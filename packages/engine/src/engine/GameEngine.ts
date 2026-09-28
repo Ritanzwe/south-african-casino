@@ -196,20 +196,28 @@ function candidateMoves(state: GameState, playerId: string): Move[] {
       }
     }
 
-    // Build with another player's top card: floor cards that already make its value, the top card,
-    // and this card (on its own if it's the same value, or with more floor cards).
+    // Build with another player's top card: floor cards that already make the value, plus this card
+    // and the top card, together in one set (floor 9 + this 4 + their 5) or in sets of their own
+    // (floor 6 + 4, this 10 and their 10), with more floor cards filling a set where needed.
     for (const top of getStealableCards(state, playerId)) {
-      for (const floorGroup of findGroupsAddingUpTo(state.tableCards, top.value)) {
-        const otherFloorCards = state.tableCards.filter((c) => !floorGroup.includes(c));
-        const partners = card.value === top.value ? [[]] : findGroupsAddingUpTo(otherFloorCards, top.value - card.value);
-        for (const partner of partners) {
-          moves.push({
-            action: "BUILD",
-            cardId: card.id,
-            tableCardIds: ids([...floorGroup, ...partner]),
-            value: top.value,
-            pileCardIds: [top.id],
-          });
+      for (let value = Math.max(2, top.value, card.value); value <= RULES.maxBuildValue; value++) {
+        for (const floorGroup of findGroupsAddingUpTo(state.tableCards, value)) {
+          const otherFloorCards = state.tableCards.filter((c) => !floorGroup.includes(c));
+          const fillers = (needed: number) => (needed === 0 ? [[]] : findGroupsAddingUpTo(otherFloorCards, needed));
+          const extras = [
+            ...(value - card.value - top.value >= 0 ? fillers(value - card.value - top.value) : []),
+            ...(top.value === value ? fillers(value - card.value) : []),
+            ...(card.value === value && top.value < value ? fillers(value - top.value) : []),
+          ];
+          for (const extra of extras) {
+            moves.push({
+              action: "BUILD",
+              cardId: card.id,
+              tableCardIds: ids([...floorGroup, ...extra]),
+              value,
+              pileCardIds: [top.id],
+            });
+          }
         }
       }
     }

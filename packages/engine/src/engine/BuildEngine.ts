@@ -54,8 +54,8 @@ export function describeTakeOver(state: GameState, playerId: string, buildId: st
  * `value`, e.g. table 5 + hand 3 → a build of 8. If they already own a build of that value,
  * the new sets join it; otherwise it becomes their new build.
  *
- * Other players' top cards of the same value (`pileCardIds`) can go in as extra sets when the
- * floor cards already make `value`, e.g. floor 6 + 4, their top 10 and your 10.
+ * Other players' top cards (`pileCardIds`) can go in when the floor already makes `value`,
+ * on their own or as part of a sum, e.g. floor 9 + your 4 + their top 5 = a build of 9.
  */
 export function createBuild(
   state: GameState,
@@ -73,10 +73,10 @@ export function createBuild(
   const player = getPlayer(state, playerId);
   const playedCard = findCardInHand(state, playerId, cardId)!;
   // The table cards were there first; the played card goes on top of them, then any top cards.
-  const sets = [
-    ...splitIntoGroups([...getLooseCards(state, tableCardIds), playedCard], value)!,
-    ...getPileCards(state, pileCardIds).map((card) => [card]),
-  ];
+  const sets = splitIntoGroups(
+    [...getLooseCards(state, tableCardIds), playedCard, ...getPileCards(state, pileCardIds)],
+    value,
+  )!;
   const setsText = describeGroups(state, sets, pileCardIds);
   const own = getOwnedBuild(state, playerId);
   const afterPlay = takeTopCards(takeTableCards(takeCardFromHand(state, playerId, cardId), tableCardIds), pileCardIds);

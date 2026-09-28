@@ -86,9 +86,10 @@ export function getKeepCardError(
  * of that value afterwards to capture the build later. If the player already owns a build
  * of the same value, the new sets join it.
  *
- * Other players' top capture-pile cards (`pileCardIds`) can go in too, each as its own set,
- * but only when they are worth exactly `value` and the chosen floor cards already make
- * `value` on their own (e.g. floor 6 + 4, their top 10 and your 10 make a strong build of 10).
+ * Other players' top capture-pile cards (`pileCardIds`) can go in too, but only when the floor
+ * already makes `value`: the chosen floor cards on their own, or a build of that value the
+ * player owns. They can be a set on their own or part of a sum, e.g. floor 9 + your 4 + their
+ * top 5 makes a strong build of 9; floor 6 + 4, their top 10 and your 10 make one of 10.
  */
 export function getCreateBuildError(
   state: GameState,
@@ -126,17 +127,14 @@ export function getCreateBuildError(
   }
   const looseCards = getLooseCards(state, tableCardIds);
   if (pileCardIds.length > 0) {
-    if (getPileCards(state, pileCardIds).some((card) => card.value !== value)) {
-      return `Another player's top card can only go into a build of its own value.`;
-    }
     // The floor must already make the value: either the chosen floor cards on their own, or a
     // build of that value the player already owns (the new sets then join it).
     const ownsBuildOfValue = getOwnedBuild(state, playerId)?.value === value;
     if (!ownsBuildOfValue && findGroupsAddingUpTo(looseCards, value).length === 0) {
-      return `To use another player's top card, the floor cards must already make ${value} on their own (like 6 + 4 for a 10).`;
+      return `To use another player's top card, the floor cards must already make ${value} on their own (like a 9 on the floor for a build of 9).`;
     }
   }
-  if (!splitIntoGroups([...looseCards, playedCard], value)) {
+  if (!splitIntoGroups([...looseCards, playedCard, ...getPileCards(state, pileCardIds)], value)) {
     return `Those cards don't make a build of ${value}. Every set in a build must add up to ${value}.`;
   }
   if (!keepsValueAfterPlaying(getPlayer(state, playerId).hand, cardId, value)) {

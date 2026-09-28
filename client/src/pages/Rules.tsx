@@ -103,8 +103,9 @@ export function Rules({ onClose }: RulesProps) {
             </li>
             <li>
               <b>Build:</b> combine your card with loose cards to make a value you hold another card of, e.g. 3 + 5 =
-              8 while holding an 8. If the floor cards already make the value, another player's top card of that
-              value can go in too (floor 6 + 4, their top 10 and your 10, holding another 10).
+              8 while holding an 8. If the floor cards already make the value, another player's top card can go in
+              too, on its own or as part of a sum: floor 6 + 4 with their top 10 and your 10, or a floor 9 with
+              your 4 + their top 5 (you still need a card of that value in your hand).
             </li>
             <li>
               <b>Add to a build:</b> add a new set of the same value to your build, e.g. 6 + 2 onto a build of 8.

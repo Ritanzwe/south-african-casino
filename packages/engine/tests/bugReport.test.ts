@@ -147,7 +147,7 @@ describe("Top cards need a matching floor build", () => {
     // Floor 7 only makes 10 with the hand's 3, so their top 10 can't come in.
     const state = withPiles(scenario({ p1: "3S 10C" }, "7D"), { p2: "10H" });
     expect(getCreateBuildError(state, "p1", "3-spades", ["7-diamonds"], 10, ["10-hearts"])).toBe(
-      "To use another player's top card, the floor cards must already make 10 on their own (like 6 + 4 for a 10).",
+      "To use another player's top card, the floor cards must already make 10 on their own (like a 9 on the floor for a build of 9).",
     );
   });
 
@@ -158,10 +158,37 @@ describe("Top cards need a matching floor build", () => {
     );
   });
 
-  it("only lets a top card into a build of its own value", () => {
+  it("needs every set, the top card's included, to add up to the build's value", () => {
     const state = withPiles(scenario({ p1: "10S 10C" }, "6D 4C"), { p2: "9H" });
     expect(getCreateBuildError(state, "p1", "10-spades", ["6-diamonds", "4-clubs"], 10, ["9-hearts"])).toBe(
-      "Another player's top card can only go into a build of its own value.",
+      "Those cards don't make a build of 10. Every set in a build must add up to 10.",
+    );
+  });
+
+  it("screenshot: floor 9, your 4 + their top 5 make a strong build of 9 (you keep your 9 to capture it)", () => {
+    const state = withPiles(scenario({ p1: "AH 3H 4C 9D 10H" }, "9C 10C 7C"), { p2: "2C 5C" });
+    const next = createBuild(state, "p1", "4-clubs", ["9-clubs"], 9, ["5-clubs"]);
+
+    expect(next.builds).toEqual([
+      { id: "build-4-clubs", value: 9, ownerId: "p1", sets: [cards("9C"), cards("4C 5C")] },
+    ]);
+    expect(ids(next.tableCards)).toEqual(["10-clubs", "7-clubs"]);
+    expect(ids(next.capturePiles.p2)).toEqual(["2-clubs"]);
+    expect(next.log.at(-1)?.message).toBe("Player 1 made a build of 9 (9♣ and 4♣ + 5♣ from Player 2's pile).");
+    expect(getLegalMoves(state, "p1")).toContainEqual({
+      action: "BUILD",
+      cardId: "4-clubs",
+      tableCardIds: ["9-clubs"],
+      value: 9,
+      pileCardIds: ["5-clubs"],
+    });
+  });
+
+  it("still won't use a top card in a sum when the floor doesn't already make the value", () => {
+    // Floor 6 and their top A don't let a 7 build (or capture) 7: nothing on the floor makes 7.
+    const state = withPiles(scenario({ p1: "7S 6H 7C" }, "6D"), { p2: "AH" });
+    expect(getCreateBuildError(state, "p1", "6-hearts", ["6-diamonds"], 7, ["A-hearts"])).toBe(
+      "To use another player's top card, the floor cards must already make 7 on their own (like a 9 on the floor for a build of 9).",
     );
   });
 
@@ -206,7 +233,7 @@ describe("Continuing your own build", () => {
   it("still needs a build or floor cards making the value when you own no build", () => {
     const state = withPiles(scenario({ p1: "10H 10S" }, "5C"), { p2: "10C" });
     expect(getCreateBuildError(state, "p1", "10-hearts", ["5-clubs"], 10, ["10-clubs"])).toBe(
-      "To use another player's top card, the floor cards must already make 10 on their own (like 6 + 4 for a 10).",
+      "To use another player's top card, the floor cards must already make 10 on their own (like a 9 on the floor for a build of 9).",
     );
   });
 });

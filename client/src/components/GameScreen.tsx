@@ -169,11 +169,16 @@ function describeSelection(state: GameState, playerId: string, selection: Select
         : { action: "RAISE_BUILD", cardId, buildId: selectedBuild.id, tableCardIds };
   } else if (buildIds.length === 0 && tableCardIds.length > 0 && !capturable) {
     // Table cards that can't be captured with this card are meant for a build: your own build if
-    // you have one, otherwise a new build of the chosen top card's value or of everything added up.
-    const buildValue =
-      pileCardIds.length > 0
-        ? getPileCards(state, pileCardIds)[0].value
-        : handCard.value + looseCards.reduce((sum, card) => sum + card.value, 0);
+    // you have one, otherwise a new build of the value the chosen cards make sets of (floor 9 +
+    // your 4 + their 5 → 9), or of everything added up.
+    const chosenCards = [...looseCards, handCard, ...getPileCards(state, pileCardIds)];
+    let buildValue = chosenCards.reduce((sum, card) => sum + card.value, 0);
+    for (let value = Math.max(...chosenCards.map((card) => card.value)); value <= RULES.maxBuildValue; value++) {
+      if (splitIntoGroups(chosenCards, value)) {
+        buildValue = value;
+        break;
+      }
+    }
     if (ownBuild && pileCardIds.length === 0) {
       attempted = { action: "ADD_TO_BUILD", cardId, buildId: ownBuild.id, tableCardIds };
     } else if (buildValue <= RULES.maxBuildValue) {
