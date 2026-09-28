@@ -8,7 +8,7 @@ import { getAddToBuildError, getCreateBuildError, getRaiseBuildError } from "../
 import { getCaptureError, getTopCardGroups } from "../rules/CaptureRules";
 import { getDriftError } from "../rules/DriftRules";
 import { SOUTH_AFRICAN_CASINO_RULES as RULES, isSupportedPlayerCount } from "../rules/SouthAfricanCasinoRules";
-import { getStealableCards } from "../rules/PileRules";
+import { addSameValueCardsBelow, getStealableCards } from "../rules/PileRules";
 import { getStealError } from "../rules/StealRules";
 import { getTurnError } from "../rules/TurnRules";
 import { randomInt, type RandomFn } from "../utils/random";
@@ -199,11 +199,14 @@ function candidateMoves(state: GameState, playerId: string): Move[] {
         if (moreTableCardIds.some((id) => floorBuild.tableCardIds.includes(id))) {
           continue;
         }
-        moves.push({
-          ...capture,
-          tableCardIds: [...floorBuild.tableCardIds, ...moreTableCardIds],
-          pileCardIds: ids(topGroup.filter((c) => topIds.has(c.id))),
-        });
+        const pileCardIds = ids(topGroup.filter((c) => topIds.has(c.id)));
+        const withTopCards: Move = { ...capture, tableCardIds: [...floorBuild.tableCardIds, ...moreTableCardIds], pileCardIds };
+        moves.push(withTopCards);
+        // The same capture, also taking the cards of the same value under their top card.
+        const withCardsBelow = addSameValueCardsBelow(state, pileCardIds, card.value);
+        if (withCardsBelow.length > pileCardIds.length) {
+          moves.push({ ...withTopCards, pileCardIds: withCardsBelow });
+        }
       }
     }
 

@@ -101,7 +101,8 @@ export function Rules({ onClose }: RulesProps) {
               player's top card can come too, but never on its own: only when you also take a matching card,
               cards adding up to it, or a build from the floor. It can match your card, or add up to it with
               more floor cards: floor 5 + their top 5 with your 5, or your build of 9 + a floor 6 with their top
-              3 with your 9.
+              3 with your 9. When their top card matches your card, the cards of the same value right under it
+              come too: a floor 8 with your 8 takes their top 8 and the 8 under it.
             </li>
             <li>
               <b>Build:</b> combine your card with loose cards to make a value you hold another card of, e.g. 3 + 5 =
@@ -151,8 +152,9 @@ export function Rules({ onClose }: RulesProps) {
           <p>
             Captured cards go face up on your pile in the order they lay on the table (a build in the order it was
             built), with your capturing card on top. Only the top card of a pile can ever be taken: captured
-            together with a floor build of your card's value, built into a build together with floor cards that
-            already make its value, or stolen into your own build.
+            together with a floor build of your card's value (with any cards of its value right under it),
+            built into a build together with floor cards that already make its value, or stolen into your own
+            build.
           </p>
         </Section>
 

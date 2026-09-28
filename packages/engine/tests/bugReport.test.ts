@@ -352,3 +352,68 @@ describe("Screenshot 2: their build of 4 and a floor 4 made into one build", () 
     );
   });
 });
+
+describe("Cards of the same value under a top card", () => {
+  // Player 2's pile ends 8♠, 8♥ (8♥ on top). An 8♦ lies on the floor and you hold 8♣.
+  const state = withPiles(scenario({ p1: "8C 3H" }, "8D 5C"), { p2: "2D 8S 8H" });
+
+  it("your 8 eats the floor 8, their top 8 and the 8 under it at the same time", () => {
+    const next = captureCards(state, "p1", "8-clubs", ["8-diamonds"], [], ["8-hearts", "8-spades"]);
+    expect(ids(next.capturePiles.p1)).toEqual(["8-diamonds", "8-spades", "8-hearts", "8-clubs"]);
+    expect(ids(next.capturePiles.p2)).toEqual(["2-diamonds"]);
+    expect(ids(next.tableCards)).toEqual(["5-clubs"]);
+  });
+
+  it("lists that capture among the legal moves", () => {
+    expect(getLegalMoves(state, "p1")).toContainEqual({
+      action: "CAPTURE",
+      cardId: "8-clubs",
+      tableCardIds: ["8-diamonds"],
+      pileCardIds: ["8-hearts", "8-spades"],
+    });
+    expect(getCapturableCardIds(state, 8, "p1")).toEqual(new Set(["8-diamonds", "8-hearts", "8-spades"]));
+  });
+
+  it("works for every value (3s, with a floor 2 + A making 3)", () => {
+    const threes = withPiles(scenario({ p1: "3C 9H" }, "2D AS"), { p2: "7C 3S 3H" });
+    const next = captureCards(threes, "p1", "3-clubs", ["2-diamonds", "A-spades"], [], ["3-hearts", "3-spades"]);
+    expect(ids(next.capturePiles.p2)).toEqual(["7-clubs"]);
+  });
+
+  it("never takes the card under the top card without the top card", () => {
+    expect(() => captureCards(state, "p1", "8-clubs", ["8-diamonds"], [], ["8-spades"])).toThrow(
+      "Only the top card of a capture pile can be captured, together with any cards of the same value right under it.",
+    );
+  });
+
+  it("only takes cards lying directly under the top card", () => {
+    // 8♥ on top, then 2♦, then 8♠: the 2 is in the way.
+    const blocked = withPiles(scenario({ p1: "8C 3H" }, "8D"), { p2: "8S 2D 8H" });
+    expect(() => captureCards(blocked, "p1", "8-clubs", ["8-diamonds"], [], ["8-hearts", "8-spades"])).toThrow(
+      "Only the top card of a capture pile can be captured, together with any cards of the same value right under it.",
+    );
+  });
+
+  it("only when the top card is the same value as your card (a 9 taking their top 8 in a sum leaves the 8 under it)", () => {
+    const sum = withPiles(scenario({ p1: "9C 3H" }, "9D AC"), { p2: "8S 8H" });
+    expect(() => captureCards(sum, "p1", "9-clubs", ["9-diamonds", "A-clubs"], [], ["8-hearts", "8-spades"])).toThrow(
+      "Only the top card of a capture pile can be captured, together with any cards of the same value right under it.",
+    );
+    const next = captureCards(sum, "p1", "9-clubs", ["9-diamonds", "A-clubs"], [], ["8-hearts"]);
+    expect(ids(next.capturePiles.p2)).toEqual(["8-spades"]);
+  });
+
+  it("still needs an 8 (or cards making 8, or a build of 8) on the floor", () => {
+    const noFloor = withPiles(scenario({ p1: "8C 3H" }, "5C"), { p2: "8S 8H" });
+    expect(() => captureCards(noFloor, "p1", "8-clubs", [], [], ["8-hearts", "8-spades"])).toThrow(
+      "You can't take another player's top card on its own.",
+    );
+  });
+
+  it("building still only uses the top card", () => {
+    const build = withPiles(scenario({ p1: "5S 5C" }, "3D 2D"), { p2: "5H 5D" });
+    expect(getCreateBuildError(build, "p1", "5-spades", ["3-diamonds", "2-diamonds"], 5, ["5-diamonds", "5-hearts"])).toBe(
+      "Only the top card of a capture pile can be captured.",
+    );
+  });
+});

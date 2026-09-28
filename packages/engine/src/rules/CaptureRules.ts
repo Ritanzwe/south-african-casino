@@ -3,7 +3,13 @@ import { findGroupsAddingUpTo, splitIntoGroups } from "../cards/groups";
 import { findCardInHand } from "../engine/stateHelpers";
 import type { GameState } from "../models/GameState";
 import { findBuild, getKeepCardError, valueWithArticle } from "./BuildRules";
-import { getPileCards, getPileCardsError, getStealableCards } from "./PileRules";
+import {
+  addSameValueCardsBelow,
+  findCapturePileOwnerId,
+  getPileCards,
+  getPileCardsError,
+  getStealableCards,
+} from "./PileRules";
 import { getLooseCards, getLooseCardsError } from "./TableRules";
 import { getTurnError } from "./TurnRules";
 
@@ -14,15 +20,16 @@ export function getCaptureGroups(state: GameState, cardValue: number): Card[][] 
 
 /**
  * Ids of the cards a card of this value could capture, e.g. to highlight them: loose table cards
- * and, when `playerId` is given, the groups with other players' top cards (see getTopCardGroups).
+ * and, when `playerId` is given, the groups with other players' top cards (see getTopCardGroups),
+ * plus the cards of the same value lying directly under those top cards.
  */
 export function getCapturableCardIds(state: GameState, cardValue: number, playerId?: string): Set<string> {
   const ids = new Set(getCaptureGroups(state, cardValue).flatMap((group) => group.map((card) => card.id)));
   if (playerId) {
-    for (const group of getTopCardGroups(state, playerId, cardValue)) {
-      for (const card of group) {
-        ids.add(card.id);
-      }
+    const topGroupIds = getTopCardGroups(state, playerId, cardValue).flatMap((group) => group.map((card) => card.id));
+    const topCardIds = topGroupIds.filter((cardId) => findCapturePileOwnerId(state, cardId) !== undefined);
+    for (const cardId of [...topGroupIds, ...addSameValueCardsBelow(state, topCardIds, cardValue)]) {
+      ids.add(cardId);
     }
   }
   return ids;
@@ -57,7 +64,9 @@ export function getCapturableBuildIds(state: GameState, cardValue: number): Set<
  * players' top capture-pile cards (`pileCardIds`). A top card is never taken on its own: the
  * same capture must take a floor build of the card's value (a build of it, or floor cards that
  * make it on their own). Then the top card can match the card, or be part of a group that adds
- * up to it (your 9 takes your build of 9 plus a floor 6 with their top 3).
+ * up to it (your 9 takes your build of 9 plus a floor 6 with their top 3). A top card that matches
+ * can bring the cards of the same value lying directly under it (your 8 takes a floor 8, their
+ * top 8♥ and the 8♠ under it).
  */
 export function getCaptureError(
   state: GameState,
@@ -83,7 +92,7 @@ export function getCaptureError(
   if (looseError) {
     return looseError;
   }
-  const pileError = getPileCardsError(state, playerId, pileCardIds);
+  const pileError = getPileCardsError(state, playerId, pileCardIds, playedCard.value);
   if (pileError) {
     return pileError;
   }

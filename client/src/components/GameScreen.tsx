@@ -1,9 +1,11 @@
 import { useEffect, useState, type ReactNode } from "react";
 import {
   SOUTH_AFRICAN_CASINO_RULES as RULES,
+  addSameValueCardsBelow,
   calculateScores,
   canDrift,
   findBuild,
+  formatCard,
   getCapturableBuildIds,
   getCapturableCardIds,
   getHandSize,
@@ -14,10 +16,12 @@ import {
   getPlayerIdAfter,
   getPossibleBuildValues,
   getRaisedValue,
+  getSameValueCardsBelow,
   getStealCardError,
   getTopCard,
   mustDrift,
   splitIntoGroups,
+  valueWithArticle,
   type Card,
   type GameState,
   type Move,
@@ -87,7 +91,9 @@ export function getActions(state: GameState, playerId: string, selection: Select
 
   const ownBuild = getOwnedBuild(state, playerId);
   if (!onlyHandCard) {
-    const capture: Move = { action: "CAPTURE", cardId, tableCardIds, buildIds, pileCardIds };
+    // A top card captured with a card of its value brings the cards of that value lying under it.
+    const takenPileCardIds = addSameValueCardsBelow(state, pileCardIds, handCard.value);
+    const capture: Move = { action: "CAPTURE", cardId, tableCardIds, buildIds, pileCardIds: takenPileCardIds };
     // When the cards can't be captured on their own, but can together with the player's own build
     // of the same value (it's the floor build their top card needs, or it's their last card of that
     // value), the build is taken too without having to click it.
@@ -139,6 +145,17 @@ export function getActions(state: GameState, playerId: string, selection: Select
   return actions;
 }
 
+/** What clicking the cards under another player's top card says: which of them come along with it, or that they can't be taken. */
+function describeCoveredCards(state: GameState, playerId: string, pile: Card[]): string {
+  const topCard = pile[pile.length - 1];
+  const below = getSameValueCardsBelow(state, topCard.id);
+  if (below.length === 0) {
+    return getStealCardError(state, playerId, pile[pile.length - 2].id) ?? "";
+  }
+  const top = formatCard(topCard);
+  return `The ${below.map(formatCard).join(" and ")} under the ${top} ${below.length === 1 ? "comes" : "come"} along when you capture the ${top} with ${valueWithArticle(topCard.value)}.`;
+}
+
 /** A hint under the hand: what to do next, or why the selection can't be played. */
 function describeSelection(state: GameState, playerId: string, selection: Selection, actions: Action[]): string {
   const { handCard, tableCardIds, buildIds, pileCardIds } = selection;
@@ -154,7 +171,14 @@ function describeSelection(state: GameState, playerId: string, selection: Select
     return `${lit}Select table cards, a build or other players' top cards to capture or build with${drift}.`;
   }
   if (actions.length > 0) {
-    return "Choose what to do with the selected cards.";
+    const capture = actions.find((action) => action.move.action === "CAPTURE")?.move;
+    const cardsBelow =
+      capture?.action === "CAPTURE" ? (capture.pileCardIds ?? []).filter((id) => !pileCardIds.includes(id)) : [];
+    const note =
+      cardsBelow.length > 0
+        ? ` Capturing also takes the ${getPileCards(state, cardsBelow).map(formatCard).join(" and ")} under their top card.`
+        : "";
+    return `Choose what to do with the selected cards.${note}`;
   }
   // Nothing is possible: explain using the rule that most likely applies.
   let attempted: Move = { action: "CAPTURE", cardId, tableCardIds, buildIds, pileCardIds };
@@ -317,9 +341,7 @@ export function GameScreen({
                           : undefined
                       }
                       onCoveredCardsClick={
-                        canAct
-                          ? () => setError(getStealCardError(state, currentPlayer.id, pile[pile.length - 2].id))
-                          : undefined
+                        canAct ? () => setError(describeCoveredCards(state, currentPlayer.id, pile)) : undefined
                       }
                     />
                   </PlayerSeat>

@@ -226,10 +226,10 @@ describe("capturing the top cards of other players' capture piles", () => {
     expect(getCapturableCardIds(state, 7, "p1")).toEqual(new Set(["7-diamonds", "6-diamonds", "A-hearts"]));
   });
 
-  it("only takes the top card of a pile", () => {
+  it("only takes the top card of a pile (the 10 under their top 3 stays)", () => {
     const state = withPiles(scenario({ p1: "10S 4C" }, "10H"), { p2: "10D 3C" });
     expect(() => captureCards(state, "p1", "10-spades", ["10-hearts"], [], ["10-diamonds"])).toThrow(
-      "Only the top card of a capture pile can be captured.",
+      "Only the top card of a capture pile can be captured, together with any cards of the same value right under it.",
     );
   });
 

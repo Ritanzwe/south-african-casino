@@ -7,7 +7,7 @@ import type { Move } from "../models/Move";
 import type { BotLevel } from "../models/Player";
 import { findGroupsAddingUpTo } from "../cards/groups";
 import { getCapturableCardIds, getTopCardGroups } from "../rules/CaptureRules";
-import { getStealableCards } from "../rules/PileRules";
+import { addSameValueCardsBelow, getStealableCards } from "../rules/PileRules";
 import { SOUTH_AFRICAN_CASINO_RULES as RULES } from "../rules/SouthAfricanCasinoRules";
 import { randomInt, type RandomFn } from "../utils/random";
 
@@ -72,7 +72,8 @@ export function chooseBotMove(state: GameState, botId: string, level: BotLevel, 
 /**
  * For each card, the capture that takes as much as it can in one go: every matching build and,
  * working from the most valuable group down, every group of loose cards that doesn't overlap,
- * then every group with other players' top cards (the same value, or a sum with more loose cards).
+ * then every group with other players' top cards (the same value, or a sum with more loose cards),
+ * with any cards of the same value lying under those top cards.
  * (getLegalMoves lists single groups, so these bigger captures are added here.)
  */
 function biggestCaptures(state: GameState, botId: string): Move[] {
@@ -96,7 +97,11 @@ function biggestCaptures(state: GameState, botId: string): Move[] {
       cardId: card.id,
       tableCardIds: taken.filter((c) => !topCards.includes(c)).map((c) => c.id),
       buildIds,
-      pileCardIds: taken.filter((c) => topCards.includes(c)).map((c) => c.id),
+      pileCardIds: addSameValueCardsBelow(
+        state,
+        taken.filter((c) => topCards.includes(c)).map((c) => c.id),
+        card.value,
+      ),
     };
     if (taken.length + buildIds.length > 0 && getMoveError(state, botId, move) === null) {
       moves.push(move);
@@ -146,8 +151,12 @@ function nextPlayerThreat(state: GameState, botId: string): number {
   const unseen = unseenCards(state, botId);
   const handSize = getPlayer(state, nextId).hand.length;
 
-  // Table cards and the top cards of everyone else's piles (the bot's own top card included).
-  const reachable = [...state.tableCards, ...getStealableCards(state, nextId)];
+  // Table cards and everyone else's piles (the bot's own included): the capturable ids pick out
+  // the top cards, and any cards of the same value under them.
+  const reachable = [
+    ...state.tableCards,
+    ...state.players.filter((player) => player.id !== nextId).flatMap((player) => state.capturePiles[player.id]),
+  ];
   let threat = 0;
   for (let value = 1; value <= 10; value++) {
     const capturableIds = getCapturableCardIds(state, value, nextId);

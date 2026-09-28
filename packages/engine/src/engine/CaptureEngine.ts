@@ -22,7 +22,8 @@ import { endTurn } from "./TurnManager";
  * it (in one group or several), any builds of the same value, and other players' top
  * capture-pile cards, which can only be taken together with a floor build of the value
  * (e.g. a 10 takes a 10 on the table and the 10 on top of an opponent's pile, or a 9 takes a
- * build of 9 and a floor 6 with the 3 on top of an opponent's pile).
+ * build of 9 and a floor 6 with the 3 on top of an opponent's pile). A matching top card can
+ * bring the cards of the same value lying directly under it (their top 8♥ and the 8♠ under it).
  *
  * Everything captured goes onto the player's capture pile in the order it lay, with the
  * capturing card on top. The player becomes the last capturer, and the turn ends.

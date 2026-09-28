@@ -57,7 +57,10 @@ export function replaceBuild(state: GameState, updated: Build): GameState {
   return { ...state, builds: state.builds.map((build) => (build.id === updated.id ? updated : build)) };
 }
 
-/** Returns a copy of the state with these top cards taken off the capture piles they were on. */
+/**
+ * Returns a copy of the state with these cards taken off the capture piles they were on: top cards,
+ * and any cards of the same value under them that a capture takes too.
+ */
 export function takeTopCards(state: GameState, cardIds: readonly string[]): GameState {
   if (cardIds.length === 0) {
     return state;

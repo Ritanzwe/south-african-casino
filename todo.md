@@ -80,6 +80,7 @@ Mark items with `[x]` when done.
 - [x] 2026-09-28 (screenshot): when the floor already makes N, a build can use another player's top card as part of a sum (floor 9 + your 4 + their top 5 = build of 9); hint shows the real build value
 - [x] 2026-09-28 (screenshot 1): a capture can use another player's top card as part of a sum when it also takes a floor build of the value (your build of 9 + floor 6 + their top 3 with your 9); CAPTURE WITH MY BUILD when your build isn't clicked; the 6 and the 3 light up; the hint no longer shows a steal error for a capture
 - [x] 2026-09-28 (screenshot 2): their build of 4 + floor 4 + your A (or 2) raise into one build of 9 (or 10), checked with tests; the over-10 message now says what the build would make
+- [x] 2026-09-28: capturing another player's top card with a card of its value also takes the same-value cards lying directly under it (floor 8 + their top 8 + the 8 under it, with your 8); CAPTURE includes them automatically and the hint says so; building and stealing still use only the top card
 
 ## Open questions (ask before the stage that needs them)
 - None right now.
