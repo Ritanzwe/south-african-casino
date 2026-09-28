@@ -27,7 +27,10 @@ export const SOUTH_AFRICAN_CASINO_RULES = {
   /** In Phase 2 of a 2-player game, players may drift even while they own a build. */
   twoPlayerPhase2AlwaysAllowsDrift: true,
 
-  /** Builds can be worth from 2 up to this value. */
+  /** The least a build can be worth: 1 is a build of Aces, each Ace a set of its own (your A on a floor A). */
+  minBuildValue: 1,
+
+  /** The most a build can be worth. */
   maxBuildValue: 10,
 
   scoring: {

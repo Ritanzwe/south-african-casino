@@ -118,8 +118,8 @@ export function getCreateBuildError(
   if (pileError) {
     return pileError;
   }
-  if (!Number.isInteger(value) || value < 2 || value > RULES.maxBuildValue) {
-    return `A build must be worth between 2 and ${RULES.maxBuildValue}.`;
+  if (!Number.isInteger(value) || value < RULES.minBuildValue || value > RULES.maxBuildValue) {
+    return `A build must be worth between ${RULES.minBuildValue} and ${RULES.maxBuildValue}.`;
   }
   const secondBuildError = getSecondBuildError(state, playerId, value);
   if (secondBuildError) {
@@ -163,7 +163,7 @@ export function getPossibleBuildValues(
   pileCardIds: readonly string[] = [],
 ): number[] {
   const values: number[] = [];
-  for (let value = 2; value <= RULES.maxBuildValue; value++) {
+  for (let value = RULES.minBuildValue; value <= RULES.maxBuildValue; value++) {
     if (canCreateBuild(state, playerId, cardId, tableCardIds, value, pileCardIds)) {
       values.push(value);
     }

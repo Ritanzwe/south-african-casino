@@ -14,7 +14,7 @@ import {
   raiseBuild,
   stealIntoBuild,
 } from "../src";
-import { cards, ids, makeBuild, scenario, withPiles } from "./helpers";
+import { cards, driftTurns, ids, makeBuild, scenario, withPiles } from "./helpers";
 
 // In these tests p1 is "Player B" (whose turn it is) and p2 is "Player A".
 
@@ -414,6 +414,41 @@ describe("Cards of the same value under a top card", () => {
     const build = withPiles(scenario({ p1: "5S 5C" }, "3D 2D"), { p2: "5H 5D" });
     expect(getCreateBuildError(build, "p1", "5-spades", ["3-diamonds", "2-diamonds"], 5, ["5-diamonds", "5-hearts"])).toBe(
       "Only the top card of a capture pile can be captured.",
+    );
+  });
+});
+
+describe("Screenshot 3: topping up Aces", () => {
+  // Floor 8♥ and A♠. You hold A♥, A♣ and more.
+  const state = scenario({ p1: "AH AC 3D 3C 5C 6D 7H 7S 9D 10S" }, "8H AS");
+
+  it("puts your A♣ on the floor A♠ as your strong build of Aces, keeping A♥ to capture it", () => {
+    const next = createBuild(state, "p1", "A-clubs", ["A-spades"], 1);
+    expect(next.builds).toEqual([{ id: "build-A-clubs", value: 1, ownerId: "p1", sets: [cards("AS"), cards("AC")] }]);
+    expect(isStrongBuild(next.builds[0])).toBe(true);
+    expect(ids(next.tableCards)).toEqual(["8-hearts"]);
+  });
+
+  it("lists it among the legal moves", () => {
+    expect(getLegalMoves(state, "p1")).toContainEqual({ action: "BUILD", cardId: "A-clubs", tableCardIds: ["A-spades"], value: 1 });
+  });
+
+  it("is captured later with your other Ace", () => {
+    const built = driftTurns(createBuild(state, "p1", "A-clubs", ["A-spades"], 1), 1);
+    const next = captureCards(built, "p1", "A-hearts", [], ["build-A-clubs"]);
+    expect(ids(next.capturePiles.p1)).toEqual(["A-spades", "A-clubs", "A-hearts"]);
+  });
+
+  it("needs another Ace in your hand", () => {
+    const lastAce = scenario({ p1: "AC 10S" }, "8H AS");
+    expect(getCreateBuildError(lastAce, "p1", "A-clubs", ["A-spades"], 1)).toBe(
+      "You need to keep an Ace in your hand to capture this build later.",
+    );
+  });
+
+  it("only pairs Aces: a build of 1 can't hold anything else", () => {
+    expect(getCreateBuildError(state, "p1", "A-clubs", ["8-hearts"], 1)).toBe(
+      "Those cards don't make a build of 1. Every set in a build must add up to 1.",
     );
   });
 });

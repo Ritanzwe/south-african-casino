@@ -42,18 +42,18 @@ Items marked **(default)** were not asked explicitly. Change them here if they a
 - Only a real capture sets `lastCapturePlayerId`. A drift never does.
 
 ## Builds
-- A build has a value from 2 to 10, an owner, and one or more **sets**, where each set is a group of cards adding up to the value.
+- A build has a value from 1 to 10, an owner, and one or more **sets**, where each set is a group of cards adding up to the value.
 - **Weak build**: exactly one set (the original combination, e.g. 2+5 = 7).
 - **Strong build**: two or more sets (e.g. [2,5] + [6,1] = 7, or a hand 2 placed on a floor 2 = 2-build).
 - To create or take over a build, the player must still hold a card of the build's value after the move.
 - **Keep a card:** a build owner must always hold a card of the build's value. Their last such card can only be played by capturing that build. It can't be used for another capture, drifted (even in Phase 2), or added to the build.
 - A player can own **only one build at a time**. If they make or take over another build worth the **same value** as the one they own, the two join into one (strong) build. A build of a different value is refused. (Added 2026-09-28.)
 - While on the table, cards in a build keep the order they were placed in. Nothing is re-sorted.
-- Build values go from 2 to 10.
+- Build values go from 1 to 10. A build of 1 is **Aces paired up** ("topping up" an Ace), each Ace a set of its own: your A♣ on a floor A♠ while you hold A♥. It is strong straight away, so it can only be captured, with an Ace. (Added 2026-09-28; before, builds started at 2.)
 
 ### Creating a build
 - Combine a hand card with loose table cards to make value V, while holding another card of value V.
-- Pairing counts: a hand 2 played onto a floor 2 makes a strong 2-build, and the player must hold another 2.
+- Pairing counts: a hand 2 played onto a floor 2 makes a strong 2-build, and the player must hold another 2. Aces pair the same way (a build of Aces, worth 1).
 - A build created with more than one set is strong straight away. **(default)**
 
 ### Your own build

@@ -108,7 +108,8 @@ export function Rules({ onClose }: RulesProps) {
               <b>Build:</b> combine your card with loose cards to make a value you hold another card of, e.g. 3 + 5 =
               8 while holding an 8. If the floor cards already make the value, another player's top card can go in
               too, on its own or as part of a sum: floor 6 + 4 with their top 10 and your 10, or a floor 9 with
-              your 4 + their top 5 (you still need a card of that value in your hand).
+              your 4 + their top 5 (you still need a card of that value in your hand). You can also pair a card
+              with one of the same value, Aces included: your A on a floor A while you hold another A.
             </li>
             <li>
               <b>Add to a build:</b> add a new set of the same value to your build, e.g. 6 + 2 onto a build of 8.
@@ -130,8 +131,8 @@ export function Rules({ onClose }: RulesProps) {
         <Section title="Builds">
           <ul className="list-disc space-y-1.5 pl-5">
             <li>
-              Builds are worth 2 to {RULES.maxBuildValue}. A build with one set is <b>weak</b>; two or more sets make
-              it <b>strong</b>.
+              Builds are worth {RULES.minBuildValue} to {RULES.maxBuildValue} (a build of 1 is paired Aces). A build
+              with one set is <b>weak</b>; two or more sets make it <b>strong</b>.
             </li>
             <li>
               Opponents can raise ("top") a weak build worth less than 10, and then they own it. They can never add

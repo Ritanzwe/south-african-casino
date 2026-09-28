@@ -131,7 +131,8 @@ export function getActions(state: GameState, playerId: string, selection: Select
         continue;
       }
       const build: Move = { action: "BUILD", cardId, tableCardIds, value };
-      actions.push({ label: `BUILD ${value}`, move: pileCardIds.length > 0 ? { ...build, pileCardIds } : build });
+      const label = value === 1 ? "BUILD ACES" : `BUILD ${value}`;
+      actions.push({ label, move: pileCardIds.length > 0 ? { ...build, pileCardIds } : build });
     }
   }
 

@@ -210,8 +210,8 @@ function candidateMoves(state: GameState, playerId: string): Move[] {
       }
     }
 
-    // Build: the card plus loose cards as one set (3 + 5 = 8), or paired with loose cards of its own value (2 and 2).
-    for (let value = Math.max(2, card.value); value <= RULES.maxBuildValue; value++) {
+    // Build: the card plus loose cards as one set (3 + 5 = 8), or paired with loose cards of its own value (2 and 2, A and A).
+    for (let value = Math.max(RULES.minBuildValue, card.value); value <= RULES.maxBuildValue; value++) {
       const partner = value === card.value ? value : value - card.value;
       for (const group of findGroupsAddingUpTo(state.tableCards, partner)) {
         moves.push({ action: "BUILD", cardId: card.id, tableCardIds: ids(group), value });
@@ -222,7 +222,7 @@ function candidateMoves(state: GameState, playerId: string): Move[] {
     // and the top card, together in one set (floor 9 + this 4 + their 5) or in sets of their own
     // (floor 6 + 4, this 10 and their 10), with more floor cards filling a set where needed.
     for (const top of topCards) {
-      for (let value = Math.max(2, top.value, card.value); value <= RULES.maxBuildValue; value++) {
+      for (let value = Math.max(RULES.minBuildValue, top.value, card.value); value <= RULES.maxBuildValue; value++) {
         for (const floorGroup of findGroupsAddingUpTo(state.tableCards, value)) {
           const otherFloorCards = state.tableCards.filter((c) => !floorGroup.includes(c));
           const fillers = (needed: number) => (needed === 0 ? [[]] : findGroupsAddingUpTo(otherFloorCards, needed));

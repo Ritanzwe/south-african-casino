@@ -93,7 +93,7 @@ describe("creating a build", () => {
       cardId: "6-hearts",
       tableCardIds: ["5-clubs"],
       value: 11,
-      message: "A build must be worth between 2 and 10.",
+      message: "A build must be worth between 1 and 10.",
     },
   ])("is not allowed when $reason", ({ hand, cardId, tableCardIds, value, message }) => {
     const state = scenario({ p1: hand }, "5C");
