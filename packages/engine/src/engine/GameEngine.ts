@@ -129,7 +129,7 @@ export function getMoveError(state: GameState, playerId: string, move: Move): st
     case "DRIFT":
       return getDriftError(state, playerId, move.cardId);
     case "CAPTURE":
-      return getCaptureError(state, playerId, move.cardId, move.tableCardIds, move.buildIds);
+      return getCaptureError(state, playerId, move.cardId, move.tableCardIds, move.buildIds, move.pileCardIds);
     case "BUILD":
       return getCreateBuildError(state, playerId, move.cardId, move.tableCardIds, move.value);
     case "ADD_TO_BUILD":
@@ -165,19 +165,32 @@ export function getLegalMoves(state: GameState, playerId: string): Move[] {
 function candidateMoves(state: GameState, playerId: string): Move[] {
   const ids = (cards: Card[]) => cards.map((card) => card.id);
   const moves: Move[] = [];
+  // Other players' top capture-pile cards can be captured just like loose table cards.
+  const topCards = getStealableCards(state, playerId);
+  const topCardIds = new Set(ids(topCards));
 
   for (const card of getPlayer(state, playerId).hand) {
     moves.push({ action: "DRIFT", cardId: card.id });
 
-    // Capture each group of loose cards, each matching build, and each build together with each group.
-    const groups = findGroupsAddingUpTo(state.tableCards, card.value).map(ids);
+    // Capture each group (of table cards and top cards), each matching build, and each build with each group.
+    const capture = (group: Card[], buildIds?: string[]): Move => {
+      const pileCardIds = ids(group.filter((c) => topCardIds.has(c.id)));
+      return {
+        action: "CAPTURE",
+        cardId: card.id,
+        tableCardIds: ids(group.filter((c) => !topCardIds.has(c.id))),
+        ...(buildIds ? { buildIds } : {}),
+        ...(pileCardIds.length > 0 ? { pileCardIds } : {}),
+      };
+    };
+    const groups = findGroupsAddingUpTo([...state.tableCards, ...topCards], card.value);
     for (const group of groups) {
-      moves.push({ action: "CAPTURE", cardId: card.id, tableCardIds: group });
+      moves.push(capture(group));
     }
     for (const build of state.builds.filter((b) => b.value === card.value)) {
-      moves.push({ action: "CAPTURE", cardId: card.id, tableCardIds: [], buildIds: [build.id] });
+      moves.push(capture([], [build.id]));
       for (const group of groups) {
-        moves.push({ action: "CAPTURE", cardId: card.id, tableCardIds: group, buildIds: [build.id] });
+        moves.push(capture(group, [build.id]));
       }
     }
 
@@ -248,7 +261,7 @@ export function applyMove(state: GameState, playerId: string, move: Move): GameS
     case "DRIFT":
       return drift(state, playerId, move.cardId);
     case "CAPTURE":
-      return captureCards(state, playerId, move.cardId, move.tableCardIds, move.buildIds);
+      return captureCards(state, playerId, move.cardId, move.tableCardIds, move.buildIds, move.pileCardIds);
     case "BUILD":
       return createBuild(state, playerId, move.cardId, move.tableCardIds, move.value);
     case "ADD_TO_BUILD":

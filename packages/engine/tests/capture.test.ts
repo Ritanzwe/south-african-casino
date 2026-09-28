@@ -13,7 +13,7 @@ import {
   getTopCard,
   splitIntoGroups,
 } from "../src";
-import { buildOwnedBy, cards, ids, scenario } from "./helpers";
+import { buildOwnedBy, cards, ids, scenario, withPiles } from "./helpers";
 
 describe("splitIntoGroups", () => {
   it("splits cards into groups that each add up to the value", () => {
@@ -171,6 +171,76 @@ describe("the capture pile", () => {
 
   it("an empty pile has no top card", () => {
     expect(getTopCard([])).toBeUndefined();
+  });
+});
+
+describe("capturing the top cards of other players' capture piles", () => {
+  it("takes a 10 on the floor and the 10 on top of an opponent's pile with a 10", () => {
+    const state = withPiles(scenario({ p1: "10S 4C" }, "10H 6D"), { p2: "3C 10D" });
+    const next = captureCards(state, "p1", "10-spades", ["10-hearts"], [], ["10-diamonds"]);
+
+    expect(ids(next.capturePiles.p1)).toEqual(["10-hearts", "10-diamonds", "10-spades"]);
+    expect(ids(next.capturePiles.p2)).toEqual(["3-clubs"]);
+    expect(ids(next.tableCards)).toEqual(["6-diamonds"]);
+    expect(next.lastCapturePlayerId).toBe("p1");
+    expect(next.log.at(-1)?.message).toBe("Player 1 captured 10♥ and 10♦ from Player 2's pile with 10♠.");
+  });
+
+  it.each([
+    ["A", "hearts", "diamonds", "clubs"],
+    ["4", "spades", "hearts", "clubs"],
+    ["7", "clubs", "spades", "diamonds"],
+  ] as const)("works for every value: a %s takes the matching top cards of both opponents", (rank, mine, theirs, table) => {
+    const state = withPiles(
+      scenario({ p1: `${rank}${mine[0].toUpperCase()} 9C` }, `${rank}${table[0].toUpperCase()}`, 3),
+      { p2: `2D ${rank}${theirs[0].toUpperCase()}`, p3: "5H 8S" },
+    );
+    const next = captureCards(state, "p1", `${rank}-${mine}`, [`${rank}-${table}`], [], [`${rank}-${theirs}`]);
+    expect(next.capturePiles.p1).toHaveLength(3);
+    expect(ids(next.capturePiles.p2)).toEqual(["2-diamonds"]);
+  });
+
+  it("can use a top card as part of a group that adds up (their 4 + a floor 6 with a 10)", () => {
+    const state = withPiles(scenario({ p1: "10S 4C" }, "6D"), { p2: "4H" });
+    const next = captureCards(state, "p1", "10-spades", ["6-diamonds"], [], ["4-hearts"]);
+    expect(next.log.at(-1)?.message).toBe("Player 1 captured 6♦ + 4♥ from Player 2's pile with 10♠.");
+    expect(next.capturePiles.p2).toEqual([]);
+  });
+
+  it("only takes the top card of a pile", () => {
+    const state = withPiles(scenario({ p1: "10S 4C" }, "10H"), { p2: "10D 3C" });
+    expect(() => captureCards(state, "p1", "10-spades", ["10-hearts"], [], ["10-diamonds"])).toThrow(
+      "Only the top card of a capture pile can be captured.",
+    );
+  });
+
+  it("never takes cards from the player's own pile", () => {
+    const state = withPiles(scenario({ p1: "10S 4C" }, "10H"), { p1: "10D" });
+    expect(() => captureCards(state, "p1", "10-spades", [], [], ["10-diamonds"])).toThrow(
+      "You can't take cards from your own capture pile.",
+    );
+  });
+
+  it("needs the top card to fit a group adding up to the capturing card", () => {
+    const state = withPiles(scenario({ p1: "10S 4C" }, "10H"), { p2: "9D" });
+    expect(() => captureCards(state, "p1", "10-spades", ["10-hearts"], [], ["9-diamonds"])).toThrow(
+      "Those cards don't add up to 10.",
+    );
+  });
+
+  it("lists these captures among the legal moves", () => {
+    const state = withPiles(scenario({ p1: "10S 4C" }, "10H"), { p2: "3C 10D" });
+    expect(getLegalMoves(state, "p1")).toContainEqual({
+      action: "CAPTURE",
+      cardId: "10-spades",
+      tableCardIds: [],
+      pileCardIds: ["10-diamonds"],
+    });
+  });
+
+  it("highlights capturable top cards when asked for a player", () => {
+    const state = withPiles(scenario({ p1: "10S 4C" }, "10H"), { p2: "3C 10D" });
+    expect(getCapturableCardIds(state, 10, "p1")).toEqual(new Set(["10-hearts", "10-diamonds"]));
   });
 });
 

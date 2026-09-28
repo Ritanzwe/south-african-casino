@@ -32,7 +32,7 @@ Items marked **(default)** were not asked explicitly. Change them here if they a
   - builds of value V (anyone's build)
 - The player chooses which sets to take, and does not have to take every matching set.
 - Capturing is optional. A player may drift instead, unless they own a build. **(default)**
-- The top card of an opponent's capture pile can **not** be taken by a normal capture.
+- The **top card of another player's capture pile** can be captured like a loose card: on its own when it matches (a 10 takes their top 10, together with a 10 on the floor), or as part of a group (a 10 takes their top 4 with a floor 6). This works for every value. Only the top card of each pile, and never from your own pile. (Changed 2026-09-28; previously top cards could only be stolen into builds.)
 - The captured cards go onto the player's capture pile **in the order they lay on the table**: a build in the order it was built, loose cards in their table order. The **capturing card goes on top**. Nothing is sorted. (Changed 2026-09-28; the original spec sorted the lowest card to the top.)
 - Only a real capture sets `lastCapturePlayerId`. A drift never does.
 

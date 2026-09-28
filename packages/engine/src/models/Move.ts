@@ -9,8 +9,11 @@
  */
 export type Move =
   | { action: "DRIFT"; cardId: string }
-  /** Play `cardId` to take loose table cards and/or builds worth the same as it. */
-  | { action: "CAPTURE"; cardId: string; tableCardIds: string[]; buildIds?: string[] }
+  /**
+   * Play `cardId` to take loose table cards, builds worth the same as it, and the top cards of
+   * other players' capture piles (`pileCardIds`).
+   */
+  | { action: "CAPTURE"; cardId: string; tableCardIds: string[]; buildIds?: string[]; pileCardIds?: string[] }
   /** Make a new build worth `value` from `cardId` and loose table cards. */
   | { action: "BUILD"; cardId: string; tableCardIds: string[]; value: number }
   /** Add new sets of the same value (`cardId` plus any loose table cards) to a build. */

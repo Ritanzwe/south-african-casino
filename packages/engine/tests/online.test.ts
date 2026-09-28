@@ -36,6 +36,7 @@ describe("parseMove", () => {
       cardId: "8-spades",
       tableCardIds: ["8-hearts"],
       buildIds: [],
+      pileCardIds: [],
     });
     expect(parseMove({ action: "BUILD", cardId: "3-hearts", tableCardIds: ["5-clubs"], value: 8 })).toMatchObject({
       value: 8,

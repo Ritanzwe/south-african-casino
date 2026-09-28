@@ -23,7 +23,8 @@ export function parseMove(input: unknown): Move | null {
   const cardId = move.cardId;
   const tableCardIds = move.tableCardIds ?? [];
   const buildIds = move.buildIds ?? [];
-  if (!isId(cardId) || !isIdList(tableCardIds) || !isIdList(buildIds)) {
+  const pileCardIds = move.pileCardIds ?? [];
+  if (!isId(cardId) || !isIdList(tableCardIds) || !isIdList(buildIds) || !isIdList(pileCardIds)) {
     return null;
   }
 
@@ -31,7 +32,7 @@ export function parseMove(input: unknown): Move | null {
     case "DRIFT":
       return { action: "DRIFT", cardId };
     case "CAPTURE":
-      return { action: "CAPTURE", cardId, tableCardIds, buildIds };
+      return { action: "CAPTURE", cardId, tableCardIds, buildIds, pileCardIds };
     case "BUILD":
       return typeof move.value === "number" && Number.isInteger(move.value)
         ? { action: "BUILD", cardId, tableCardIds, value: move.value }

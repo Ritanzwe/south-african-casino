@@ -51,12 +51,13 @@ interface GameScreenProps {
   onExit: () => void;
 }
 
-/** What the player has picked: a hand card, plus any table cards, builds and a card to steal. */
+/** What the player has picked: a hand card, plus any table cards, builds and other players' top cards. */
 interface Selection {
   handCard: Card;
   tableCardIds: string[];
   buildIds: string[];
-  stolenCardId: string | null;
+  /** Top cards of other players' capture piles, to capture (or steal into a build). */
+  pileCardIds: string[];
 }
 
 interface Action {
@@ -73,34 +74,24 @@ const HEADER_BUTTON = "cursor-pointer rounded-lg border border-white/20 px-3 py-
 
 /** The moves the current selection allows. The engine decides what is legal; this only asks it. */
 function getActions(state: GameState, playerId: string, selection: Selection): Action[] {
-  const { handCard, tableCardIds, buildIds, stolenCardId } = selection;
+  const { handCard, tableCardIds, buildIds, pileCardIds } = selection;
   const cardId = handCard.id;
   const isLegal = (move: Move) => getMoveError(state, playerId, move) === null;
   const actions: Action[] = [];
 
-  if (stolenCardId) {
-    if (buildIds.length === 1) {
-      const steal: Move = { action: "STEAL", cardId, buildId: buildIds[0], stolenCardId, tableCardIds };
-      if (isLegal(steal)) {
-        actions.push({ label: "STEAL", move: steal });
-      }
-    }
-    return actions;
-  }
-
-  if (tableCardIds.length === 0 && buildIds.length === 0) {
+  if (tableCardIds.length === 0 && buildIds.length === 0 && pileCardIds.length === 0) {
     if (canDrift(state, playerId, cardId)) {
       actions.push({ label: "DRIFT", move: { action: "DRIFT", cardId } });
     }
     return actions;
   }
 
-  const capture: Move = { action: "CAPTURE", cardId, tableCardIds, buildIds };
+  const capture: Move = { action: "CAPTURE", cardId, tableCardIds, buildIds, pileCardIds };
   if (isLegal(capture)) {
     actions.push({ label: "CAPTURE", move: capture });
   }
 
-  if (buildIds.length === 0) {
+  if (buildIds.length === 0 && pileCardIds.length === 0) {
     for (const value of getPossibleBuildValues(state, playerId, cardId, tableCardIds)) {
       actions.push({ label: `BUILD ${value}`, move: { action: "BUILD", cardId, tableCardIds, value } });
     }
@@ -108,13 +99,20 @@ function getActions(state: GameState, playerId: string, selection: Selection): A
 
   if (buildIds.length === 1) {
     const build = findBuild(state, buildIds[0])!;
-    const addToBuild: Move = { action: "ADD_TO_BUILD", cardId, buildId: build.id, tableCardIds };
-    if (isLegal(addToBuild)) {
-      actions.push({ label: "ADD TO BUILD", move: addToBuild });
-    }
-    const raise: Move = { action: "RAISE_BUILD", cardId, buildId: build.id, tableCardIds };
-    if (isLegal(raise)) {
-      actions.push({ label: `RAISE TO ${getRaisedValue(state, build, handCard, tableCardIds)}`, move: raise });
+    if (pileCardIds.length === 0) {
+      const addToBuild: Move = { action: "ADD_TO_BUILD", cardId, buildId: build.id, tableCardIds };
+      if (isLegal(addToBuild)) {
+        actions.push({ label: "ADD TO BUILD", move: addToBuild });
+      }
+      const raise: Move = { action: "RAISE_BUILD", cardId, buildId: build.id, tableCardIds };
+      if (isLegal(raise)) {
+        actions.push({ label: `RAISE TO ${getRaisedValue(state, build, handCard, tableCardIds)}`, move: raise });
+      }
+    } else if (pileCardIds.length === 1) {
+      const steal: Move = { action: "STEAL", cardId, buildId: build.id, stolenCardId: pileCardIds[0], tableCardIds };
+      if (isLegal(steal)) {
+        actions.push({ label: "STEAL INTO BUILD", move: steal });
+      }
     }
   }
   return actions;
@@ -122,40 +120,36 @@ function getActions(state: GameState, playerId: string, selection: Selection): A
 
 /** A hint under the hand: what to do next, or why the selection can't be played. */
 function describeSelection(state: GameState, playerId: string, selection: Selection, actions: Action[]): string {
-  const { handCard, tableCardIds, buildIds, stolenCardId } = selection;
+  const { handCard, tableCardIds, buildIds, pileCardIds } = selection;
   const cardId = handCard.id;
 
-  if (stolenCardId) {
-    if (buildIds.length !== 1) {
-      return "Now select the build to add the stolen card to.";
-    }
-    if (actions.length > 0) {
-      return "Press STEAL to add the cards to the build.";
-    }
-    const steal: Move = { action: "STEAL", cardId, buildId: buildIds[0], stolenCardId, tableCardIds };
-    return getMoveError(state, playerId, steal) ?? "";
-  }
-  if (tableCardIds.length === 0 && buildIds.length === 0) {
+  if (tableCardIds.length === 0 && buildIds.length === 0 && pileCardIds.length === 0) {
     const canCaptureSomething =
-      getCapturableCardIds(state, handCard.value).size + getCapturableBuildIds(state, handCard.value).size > 0;
+      getCapturableCardIds(state, handCard.value, playerId).size +
+        getCapturableBuildIds(state, handCard.value).size >
+      0;
     const lit = canCaptureSomething ? "Cards you can capture are lit up. " : "";
     const drift = actions.length > 0 ? ", or press DRIFT" : "";
-    return `${lit}Select table cards or a build to capture or build with${drift}.`;
+    return `${lit}Select table cards, a build or other players' top cards to capture or build with${drift}.`;
   }
   if (actions.length > 0) {
     return "Choose what to do with the selected cards.";
   }
   // Nothing is possible: explain using the rule that most likely applies.
-  let attempted: Move = { action: "CAPTURE", cardId, tableCardIds, buildIds };
+  let attempted: Move = { action: "CAPTURE", cardId, tableCardIds, buildIds, pileCardIds };
   const build = buildIds.length === 1 ? findBuild(state, buildIds[0]) : undefined;
   if (build && handCard.value !== build.value) {
-    // A different value: they're adding to their own build, or raising someone else's.
-    attempted =
-      build.ownerId === playerId
-        ? { action: "ADD_TO_BUILD", cardId, buildId: build.id, tableCardIds }
-        : { action: "RAISE_BUILD", cardId, buildId: build.id, tableCardIds };
+    // A different value: they're stealing into a build, adding to their own, or raising someone else's.
+    if (pileCardIds.length === 1) {
+      attempted = { action: "STEAL", cardId, buildId: build.id, stolenCardId: pileCardIds[0], tableCardIds };
+    } else if (pileCardIds.length === 0) {
+      attempted =
+        build.ownerId === playerId
+          ? { action: "ADD_TO_BUILD", cardId, buildId: build.id, tableCardIds }
+          : { action: "RAISE_BUILD", cardId, buildId: build.id, tableCardIds };
+    }
   }
-  if (buildIds.length === 0) {
+  if (buildIds.length === 0 && pileCardIds.length === 0) {
     // Table cards that can't be captured with this card are probably meant for a build.
     const looseCards = state.tableCards.filter((card) => tableCardIds.includes(card.id));
     const buildValue = handCard.value + looseCards.reduce((sum, card) => sum + card.value, 0);
@@ -189,7 +183,7 @@ export function GameScreen({
   const [handCardId, setHandCardId] = useState<string | null>(null);
   const [tableCardIds, setTableCardIds] = useState<string[]>([]);
   const [buildIds, setBuildIds] = useState<string[]>([]);
-  const [stolenCardId, setStolenCardId] = useState<string | null>(null);
+  const [pileCardIds, setPileCardIds] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
 
@@ -208,16 +202,16 @@ export function GameScreen({
 
   const ownBuild = getOwnedBuild(state, currentPlayer.id);
   const handCard = canAct ? currentPlayer.hand.find((card) => card.id === handCardId) : undefined;
-  const selection: Selection | null = handCard ? { handCard, tableCardIds, buildIds, stolenCardId } : null;
+  const selection: Selection | null = handCard ? { handCard, tableCardIds, buildIds, pileCardIds } : null;
   const actions = selection ? getActions(state, currentPlayer.id, selection) : [];
   const hint = selection ? describeSelection(state, currentPlayer.id, selection, actions) : "Select a card from your hand.";
-  const hasExtraSelection = tableCardIds.length > 0 || buildIds.length > 0 || stolenCardId !== null;
+  const hasExtraSelection = tableCardIds.length > 0 || buildIds.length > 0 || pileCardIds.length > 0;
 
   function clearSelection() {
     setHandCardId(null);
     setTableCardIds([]);
     setBuildIds([]);
-    setStolenCardId(null);
+    setPileCardIds([]);
     setError(null);
   }
 
@@ -277,11 +271,11 @@ export function GameScreen({
                   >
                     <CapturePile
                       cards={pile}
-                      topCardSelected={topCard !== undefined && topCard.id === stolenCardId}
+                      topCardSelected={topCard !== undefined && pileCardIds.includes(topCard.id)}
                       onTopCardClick={
                         canAct && topCard
                           ? () => {
-                              setStolenCardId((selected) => (selected === topCard.id ? null : topCard.id));
+                              setPileCardIds((list) => toggle(list, topCard.id));
                               setError(null);
                             }
                           : undefined
@@ -317,7 +311,7 @@ export function GameScreen({
               state={state}
               selectedCardIds={tableCardIds}
               selectedBuildIds={buildIds}
-              capturableCardIds={handCard ? getCapturableCardIds(state, handCard.value) : new Set()}
+              capturableCardIds={handCard ? getCapturableCardIds(state, handCard.value, currentPlayer.id) : new Set()}
               capturableBuildIds={handCard ? getCapturableBuildIds(state, handCard.value) : new Set()}
               onCardClick={canAct ? (id) => setTableCardIds((list) => toggle(list, id)) : undefined}
               onBuildClick={canAct ? (id) => setBuildIds((list) => toggle(list, id)) : undefined}

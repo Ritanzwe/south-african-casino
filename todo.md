@@ -73,6 +73,7 @@ Mark items with `[x]` when done.
   - [x] Bug 3: captured cards keep the order they lay in, capturing card on top; builds keep their placement order
   - [x] Bug 4 / Test 5: raising an opponent's weak build can include floor cards
   - [x] Main action button stands out from the others, to avoid e.g. ADD TO BUILD by mistake
+- [x] 2026-09-28: a matching card captures other players' top capture-pile cards too (e.g. a 10 takes the floor 10 and an opponent's top 10), for every value
 
 ## Open questions (ask before the stage that needs them)
 - None right now.

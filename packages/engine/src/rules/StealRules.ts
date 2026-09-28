@@ -13,7 +13,10 @@ export function findCapturePileOwnerId(state: GameState, cardId: string): string
   );
 }
 
-/** The top cards of the other players' capture piles: the only capture-pile cards this player could steal. */
+/**
+ * The top cards of the other players' capture piles: the only capture-pile cards this player
+ * can take, by capturing them or stealing them into a build.
+ */
 export function getStealableCards(state: GameState, playerId: string): Card[] {
   return state.players
     .filter((player) => player.id !== playerId)
@@ -21,9 +24,17 @@ export function getStealableCards(state: GameState, playerId: string): Card[] {
     .filter((card): card is Card => card !== undefined);
 }
 
+/** The capture-pile cards with these ids (check them with getStealCardError first). */
+export function getPileCards(state: GameState, cardIds: readonly string[]): Card[] {
+  return cardIds.map((cardId) => {
+    const ownerId = findCapturePileOwnerId(state, cardId)!;
+    return state.capturePiles[ownerId].find((card) => card.id === cardId)!;
+  });
+}
+
 /**
- * Checks that a card may be stolen: it has to be the top card of another player's capture pile.
- * Returns a message for the player, or null if it can be stolen.
+ * Checks that a capture-pile card may be taken: it has to be the top card of another player's
+ * capture pile. Returns a message for the player, or null if it can be taken.
  */
 export function getStealCardError(state: GameState, playerId: string, cardId: string): string | null {
   const ownerId = findCapturePileOwnerId(state, cardId);
@@ -31,15 +42,15 @@ export function getStealCardError(state: GameState, playerId: string, cardId: st
     return "That card isn't in a capture pile.";
   }
   if (ownerId === playerId) {
-    return "You can't steal from your own capture pile.";
+    return "You can't take cards from your own capture pile.";
   }
   if (getTopCard(state.capturePiles[ownerId])?.id !== cardId) {
-    return "Only the top card of a capture pile can be stolen.";
+    return "Only the top card of a capture pile can be captured.";
   }
   return null;
 }
 
-/** Could the player steal this card? Only the top card of another player's capture pile can be stolen. */
+/** Could the player take this card? Only the top card of another player's capture pile can be taken. */
 export function canStealCapturePileCard(state: GameState, playerId: string, cardId: string): boolean {
   return getStealCardError(state, playerId, cardId) === null;
 }

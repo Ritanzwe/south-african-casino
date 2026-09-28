@@ -88,14 +88,14 @@ describe("only the top card can be stolen", () => {
     const state = setUp();
     expect(canStealCapturePileCard(state, "p1", "7-diamonds")).toBe(false);
     expect(() => stealIntoBuild(state, "p1", "7-hearts", "build-p1", "7-diamonds", [])).toThrow(
-      "Only the top card of a capture pile can be stolen.",
+      "Only the top card of a capture pile can be captured.",
     );
   });
 
   it("refuses a card from the player's own capture pile", () => {
     const state = withPiles(setUp(), { p1: "9C 2H" });
     expect(() => stealIntoBuild(state, "p1", "7-hearts", "build-p1", "2-hearts", [])).toThrow(
-      "You can't steal from your own capture pile.",
+      "You can't take cards from your own capture pile.",
     );
   });
 
@@ -105,7 +105,7 @@ describe("only the top card can be stolen", () => {
     );
   });
 
-  it("never lets a normal capture take a capture-pile card", () => {
+  it("doesn't accept a capture-pile card passed off as a table card", () => {
     expect(() => captureCards(setUp("AH 8S"), "p1", "A-hearts", ["A-spades"])).toThrow(
       "You can only use cards that are loose on the table.",
     );
