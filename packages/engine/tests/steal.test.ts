@@ -55,16 +55,13 @@ describe("stealing into your own build", () => {
 });
 
 describe("stealing into an opponent's build", () => {
-  it("takes over a weak build", () => {
+  it("isn't allowed: another player's build can only be captured or raised", () => {
     const state = withPiles(
       { ...scenario({ p1: "7H 8S" }, "", 3), builds: [makeBuild("p2", ["5S 3S"])] },
       { p3: "10C AS" },
     );
-    const next = stealIntoBuild(state, "p1", "7-hearts", "build-p2", "A-spades", []);
-
-    expect(next.builds[0]).toMatchObject({ ownerId: "p1", sets: [cards("5S 3S"), cards("7H AS")] });
-    expect(next.log.at(-1)?.message).toBe(
-      "Player 1 stole A♠ from Player 3's capture pile and added 7♥ + A♠ to Player 2's build of 8 and took it over.",
+    expect(() => stealIntoBuild(state, "p1", "7-hearts", "build-p2", "A-spades", [])).toThrow(
+      "You can't add to another player's build. You can capture it, or raise it to a new value.",
     );
   });
 

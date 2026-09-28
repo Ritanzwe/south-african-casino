@@ -10,10 +10,10 @@ import { addLogEntry, findCardInHand, getPlayer, takeCardFromHand, takeTableCard
 import { endTurn } from "./TurnManager";
 
 /**
- * CAPTURE: the player plays a card from their hand and takes cards that add up to it, in one
- * group or several: loose table cards and the top cards of other players' capture piles
- * (e.g. a 10 takes a 10 on the table and the 10 on top of an opponent's pile). It can also take
- * any builds of the same value.
+ * CAPTURE: the player plays a card from their hand and takes loose table cards that add up to
+ * it (in one group or several), any builds of the same value, and other players' top
+ * capture-pile cards of the same value (e.g. a 10 takes a 10 on the table and the 10 on top of
+ * an opponent's pile).
  *
  * Everything captured goes onto the player's capture pile in the order it lay, with the
  * capturing card on top. The player becomes the last capturer, and the turn ends.
@@ -36,8 +36,9 @@ export function captureCards(
   const playedCard = findCardInHand(state, playerId, cardId)!;
   const looseCards = getLooseCards(state, tableCardIds);
   const pileCards = getPileCards(state, pileCardIds);
-  const groupCards = [...looseCards, ...pileCards];
-  const groups = groupCards.length > 0 ? splitIntoGroups(groupCards, playedCard.value)! : [];
+  // Loose cards form groups that add up; each top card matches the played card on its own.
+  const looseGroups = looseCards.length > 0 ? splitIntoGroups(looseCards, playedCard.value)! : [];
+  const groups = [...looseGroups, ...pileCards.map((card) => [card])];
   const capturedBuilds = state.builds.filter((build) => buildIds.includes(build.id));
   const buildCards = capturedBuilds.flatMap((build) => build.sets.flat());
 
@@ -47,7 +48,11 @@ export function captureCards(
   for (const ownerId of pileOwners.values()) {
     capturePiles[ownerId] = capturePiles[ownerId].slice(0, -1);
   }
-  capturePiles[playerId] = addToCapturePile(capturePiles[playerId], [...buildCards, ...groupCards], playedCard);
+  capturePiles[playerId] = addToCapturePile(
+    capturePiles[playerId],
+    [...buildCards, ...looseCards, ...pileCards],
+    playedCard,
+  );
 
   const afterCapture: GameState = {
     ...takeTableCards(takeCardFromHand(state, playerId, cardId), tableCardIds),

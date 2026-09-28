@@ -149,8 +149,8 @@ export function getPossibleBuildValues(
 /**
  * Explains why these cards can't be added to the build, or returns null if they can.
  * The hand card (with any chosen loose cards) must form new sets that each add up to the
- * build's value. You can add to your own build, or to an opponent's weak build, which you
- * then take over (joining it to your own build if that has the same value).
+ * build's value. Only your own build can be added to: another player's build can only be
+ * captured, or raised to a new value if it's weak.
  */
 export function getAddToBuildError(
   state: GameState,
@@ -179,9 +179,9 @@ export function getAddToBuildError(
 }
 
 /**
- * Checks shared by ADD TO BUILD and STEAL: may the player change this build, do the played
- * card and `newCards` make new sets of the build's value, and does the player still keep
- * a card of that value afterwards?
+ * Checks shared by ADD TO BUILD and STEAL: is it the player's own build, do the played card
+ * and `newCards` make new sets of the build's value, and does the player still keep a card
+ * of that value afterwards?
  */
 export function getNewSetsError(
   state: GameState,
@@ -190,14 +190,15 @@ export function getNewSetsError(
   build: Build,
   newCards: readonly Card[],
 ): string | null {
+  // Another player's build can't have sets of the same value added to it: it can only be
+  // captured, or (if it's weak and worth less than 10) raised to a new value.
   if (build.ownerId !== playerId) {
     if (isStrongBuild(build)) {
       return STRONG_BUILD;
     }
-    const secondBuildError = getSecondBuildError(state, playerId, build.value);
-    if (secondBuildError) {
-      return secondBuildError;
-    }
+    return build.value < RULES.maxBuildValue
+      ? "You can't add to another player's build. You can capture it, or raise it to a new value."
+      : "You can't add to another player's build. You can only capture it.";
   }
   if (!splitIntoGroups([...newCards, playedCard], build.value)) {
     return `Every set you add to this build must add up to ${build.value}.`;

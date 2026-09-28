@@ -5,7 +5,7 @@ import type { GameState } from "../models/GameState";
 import type { Move } from "../models/Move";
 import type { BotLevel, Player } from "../models/Player";
 import { getAddToBuildError, getCreateBuildError, getRaiseBuildError } from "../rules/BuildRules";
-import { getCaptureError } from "../rules/CaptureRules";
+import { getCaptureError, getMatchingTopCards } from "../rules/CaptureRules";
 import { getDriftError } from "../rules/DriftRules";
 import { SOUTH_AFRICAN_CASINO_RULES as RULES, isSupportedPlayerCount } from "../rules/SouthAfricanCasinoRules";
 import { getStealError, getStealableCards } from "../rules/StealRules";
@@ -165,32 +165,28 @@ export function getLegalMoves(state: GameState, playerId: string): Move[] {
 function candidateMoves(state: GameState, playerId: string): Move[] {
   const ids = (cards: Card[]) => cards.map((card) => card.id);
   const moves: Move[] = [];
-  // Other players' top capture-pile cards can be captured just like loose table cards.
-  const topCards = getStealableCards(state, playerId);
-  const topCardIds = new Set(ids(topCards));
 
   for (const card of getPlayer(state, playerId).hand) {
     moves.push({ action: "DRIFT", cardId: card.id });
 
-    // Capture each group (of table cards and top cards), each matching build, and each build with each group.
-    const capture = (group: Card[], buildIds?: string[]): Move => {
-      const pileCardIds = ids(group.filter((c) => topCardIds.has(c.id)));
-      return {
-        action: "CAPTURE",
-        cardId: card.id,
-        tableCardIds: ids(group.filter((c) => !topCardIds.has(c.id))),
-        ...(buildIds ? { buildIds } : {}),
-        ...(pileCardIds.length > 0 ? { pileCardIds } : {}),
-      };
+    // Capture each group of table cards, each matching build, and each build with each group,
+    // each with and without the other players' top cards of the same value (their top 10 for a 10).
+    const matchingTops = ids(getMatchingTopCards(state, playerId, card.value));
+    const capture = (tableCardIds: string[], buildIds?: string[]): Move[] => {
+      const move: Move = { action: "CAPTURE", cardId: card.id, tableCardIds, ...(buildIds ? { buildIds } : {}) };
+      return matchingTops.length > 0 ? [move, { ...move, pileCardIds: matchingTops }] : [move];
     };
-    const groups = findGroupsAddingUpTo([...state.tableCards, ...topCards], card.value);
+    if (matchingTops.length > 0) {
+      moves.push({ action: "CAPTURE", cardId: card.id, tableCardIds: [], pileCardIds: matchingTops });
+    }
+    const groups = findGroupsAddingUpTo(state.tableCards, card.value).map(ids);
     for (const group of groups) {
-      moves.push(capture(group));
+      moves.push(...capture(group));
     }
     for (const build of state.builds.filter((b) => b.value === card.value)) {
-      moves.push(capture([], [build.id]));
+      moves.push(...capture([], [build.id]));
       for (const group of groups) {
-        moves.push(capture(group, [build.id]));
+        moves.push(...capture(group, [build.id]));
       }
     }
 

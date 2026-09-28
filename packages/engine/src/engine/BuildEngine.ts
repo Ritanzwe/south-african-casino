@@ -80,8 +80,8 @@ export function createBuild(
 }
 
 /**
- * ADD TO BUILD: the player adds new sets of the same value to a build: their own, or an
- * opponent's weak build, which they then take over. The build becomes strong.
+ * ADD TO BUILD: the player adds new sets of the same value to their own build, which then
+ * becomes strong. (Other players' builds can't be added to; see getNewSetsError.)
  */
 export function addToBuild(
   state: GameState,
@@ -100,16 +100,13 @@ export function addToBuild(
   const playedCard = findCardInHand(state, playerId, cardId)!;
   const newSets = splitIntoGroups([...getLooseCards(state, tableCardIds), playedCard], build.value)!;
 
-  const afterAdd = claimBuild(takeTableCards(takeCardFromHand(state, playerId, cardId), tableCardIds), playerId, {
+  const afterAdd = replaceBuild(takeTableCards(takeCardFromHand(state, playerId, cardId), tableCardIds), {
     ...build,
     sets: [...build.sets, ...newSets],
-    ownerId: playerId,
   });
-  const message =
-    build.ownerId === playerId
-      ? `${player.name} added ${formatGroups(newSets)} to their build of ${build.value}.`
-      : `${player.name} added ${formatGroups(newSets)} to ${getPlayer(state, build.ownerId).name}'s build of ${build.value} ${describeTakeOver(state, playerId, buildId)}.`;
-  return endTurn(addLogEntry(afterAdd, message, playerId));
+  return endTurn(
+    addLogEntry(afterAdd, `${player.name} added ${formatGroups(newSets)} to their build of ${build.value}.`, playerId),
+  );
 }
 
 /**

@@ -60,8 +60,7 @@ export function canStealCapturePileCard(state: GameState, playerId: string, card
  *
  * In one move the player plays `cardId` from their hand, takes the top card of another
  * player's capture pile (`stolenCardId`) and adds both, with any chosen loose table cards,
- * to a build as new sets that each add up to the build's value. The build must be their
- * own, or an opponent's weak build, which they then take over.
+ * to their own build as new sets that each add up to the build's value.
  */
 export function getStealError(
   state: GameState,

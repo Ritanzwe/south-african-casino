@@ -168,12 +168,19 @@ describe("an opponent's weak build", () => {
     expect(game.builds[0]).toMatchObject({ value: 9, ownerId: "p2" });
   });
 
-  it("can take a new set of the same value, and the player takes it over (now strong)", () => {
-    const next = addToBuild(state, "p1", "4-hearts", "build-p2", ["3-clubs"]);
-    expect(next.builds[0].sets).toEqual([cards("2S 5S"), cards("3C 4H")]);
-    expect(next.builds[0].ownerId).toBe("p1");
-    expect(isStrongBuild(next.builds[0])).toBe(true);
-    expect(next.log.at(-1)?.message).toBe("Player 1 added 3♣ + 4♥ to Player 2's build of 7 and took it over.");
+  it("can't have a set of the same value added by another player (it can only be captured or raised)", () => {
+    expect(() => addToBuild(state, "p1", "4-hearts", "build-p2", ["3-clubs"])).toThrow(
+      "You can't add to another player's build. You can capture it, or raise it to a new value.",
+    );
+  });
+
+  it("can only be captured when it's worth 10", () => {
+    const ten = { ...scenario({ p1: "6H 10S 10C" }, "4C"), builds: [makeBuild("p2", ["7S 3S"])] };
+    expect(() => addToBuild(ten, "p1", "6-hearts", "build-p2", ["4-clubs"])).toThrow(
+      "You can't add to another player's build. You can only capture it.",
+    );
+    expect(() => raiseBuild(ten, "p1", "6-hearts", "build-p2")).toThrow("A build can't be worth more than 10.");
+    expect(captureCards(ten, "p1", "10-spades", [], ["build-p2"]).builds).toEqual([]);
   });
 
   it("can't be raised by a player without a card of the new value", () => {

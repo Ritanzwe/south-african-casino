@@ -97,9 +97,9 @@ export function Rules({ onClose }: RulesProps) {
             </li>
             <li>
               <b>Capture:</b> take loose cards that add up to your card, in one group or several (an 8 can take an 8
-              and 5 + 3 together), plus any build of the same value and the top cards of other players' capture
-              piles (a 10 takes the 10 on the table and the 10 on top of their pile). You choose which groups to
-              take.
+              and 5 + 3 together), plus any build of the same value and other players' top capture-pile cards of
+              the same value (a 10 takes the 10 on the table and the 10 on top of their pile, but a top card is
+              never part of a sum). You choose which groups to take.
             </li>
             <li>
               <b>Build:</b> combine your card with loose cards to make a value you hold another card of, e.g. 3 + 5 =
@@ -114,7 +114,7 @@ export function Rules({ onClose }: RulesProps) {
             </li>
             <li>
               <b>Steal:</b> take the top card of another player's capture pile and add it, together with a card from
-              your hand, to a build as a new set of its value.
+              your hand, to your own build as a new set of its value.
             </li>
           </ul>
         </Section>
@@ -126,8 +126,8 @@ export function Rules({ onClose }: RulesProps) {
               it <b>strong</b>.
             </li>
             <li>
-              Opponents can raise a weak build or add a set to it, and then they own it. A strong build can only be
-              captured.
+              Opponents can raise ("top") a weak build worth less than 10, and then they own it. They can never add
+              a set of the same value to your build. A strong build, or a build of 10, can only be captured.
             </li>
             <li>
               You can own one build at a time. If you make or take over another build worth the same as yours, the
@@ -144,7 +144,7 @@ export function Rules({ onClose }: RulesProps) {
           <p>
             Captured cards go face up on your pile in the order they lay on the table (a build in the order it was
             built), with your capturing card on top. Only the top card of a pile can ever be taken: captured with
-            a matching card (on its own or as part of a group), or stolen into a build.
+            a card of the same value, or stolen into your own build.
           </p>
         </Section>
 

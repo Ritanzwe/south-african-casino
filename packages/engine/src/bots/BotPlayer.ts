@@ -6,7 +6,7 @@ import type { GameState } from "../models/GameState";
 import type { Move } from "../models/Move";
 import type { BotLevel } from "../models/Player";
 import { findGroupsAddingUpTo } from "../cards/groups";
-import { getCapturableCardIds } from "../rules/CaptureRules";
+import { getCapturableCardIds, getMatchingTopCards } from "../rules/CaptureRules";
 import { getStealableCards } from "../rules/StealRules";
 import { SOUTH_AFRICAN_CASINO_RULES as RULES } from "../rules/SouthAfricanCasinoRules";
 import { randomInt, type RandomFn } from "../utils/random";
@@ -70,32 +70,25 @@ export function chooseBotMove(state: GameState, botId: string, level: BotLevel, 
 }
 
 /**
- * For each card, the capture that takes as much as it can in one go: every matching build and,
- * working from the most valuable group down, every group that doesn't overlap, made of loose
- * table cards and other players' top capture-pile cards.
+ * For each card, the capture that takes as much as it can in one go: every matching build,
+ * every other player's top card of the same value and, working from the most valuable group
+ * down, every group of loose cards that doesn't overlap.
  * (getLegalMoves lists single groups, so these bigger captures are added here.)
  */
 function biggestCaptures(state: GameState, botId: string): Move[] {
-  const topCardIds = new Set(getStealableCards(state, botId).map((card) => card.id));
-  const pool = [...state.tableCards, ...getStealableCards(state, botId)];
   const moves: Move[] = [];
   for (const card of getPlayer(state, botId).hand) {
     const taken: Card[] = [];
-    const groups = findGroupsAddingUpTo(pool, card.value).sort((a, b) => totalWorth(b) - totalWorth(a));
+    const groups = findGroupsAddingUpTo(state.tableCards, card.value).sort((a, b) => totalWorth(b) - totalWorth(a));
     for (const group of groups) {
       if (group.every((c) => !taken.includes(c))) {
         taken.push(...group);
       }
     }
     const buildIds = state.builds.filter((build) => build.value === card.value).map((build) => build.id);
-    const move: Move = {
-      action: "CAPTURE",
-      cardId: card.id,
-      tableCardIds: taken.filter((c) => !topCardIds.has(c.id)).map((c) => c.id),
-      buildIds,
-      pileCardIds: taken.filter((c) => topCardIds.has(c.id)).map((c) => c.id),
-    };
-    if ((taken.length > 0 || buildIds.length > 0) && getMoveError(state, botId, move) === null) {
+    const pileCardIds = getMatchingTopCards(state, botId, card.value).map((c) => c.id);
+    const move: Move = { action: "CAPTURE", cardId: card.id, tableCardIds: taken.map((c) => c.id), buildIds, pileCardIds };
+    if (taken.length + buildIds.length + pileCardIds.length > 0 && getMoveError(state, botId, move) === null) {
       moves.push(move);
     }
   }

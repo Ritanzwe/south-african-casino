@@ -14,11 +14,24 @@ export function getCaptureGroups(state: GameState, cardValue: number): Card[][] 
 
 /**
  * Ids of the cards a card of this value could capture, e.g. to highlight them: loose table cards
- * and, when `playerId` is given, the top cards of the other players' capture piles.
+ * and, when `playerId` is given, the other players' top capture-pile cards of the same value.
  */
 export function getCapturableCardIds(state: GameState, cardValue: number, playerId?: string): Set<string> {
-  const pool = playerId ? [...state.tableCards, ...getStealableCards(state, playerId)] : state.tableCards;
-  return new Set(findGroupsAddingUpTo(pool, cardValue).flatMap((group) => group.map((card) => card.id)));
+  const ids = new Set(getCaptureGroups(state, cardValue).flatMap((group) => group.map((card) => card.id)));
+  if (playerId) {
+    for (const topCard of getMatchingTopCards(state, playerId, cardValue)) {
+      ids.add(topCard.id);
+    }
+  }
+  return ids;
+}
+
+/**
+ * The other players' top capture-pile cards that a card of this value can capture: only those
+ * of exactly the same value. (A top card is never part of a group that adds up.)
+ */
+export function getMatchingTopCards(state: GameState, playerId: string, cardValue: number): Card[] {
+  return getStealableCards(state, playerId).filter((card) => card.value === cardValue);
 }
 
 /** Ids of the builds a card of this value could capture (any build with the same value). */
@@ -28,9 +41,9 @@ export function getCapturableBuildIds(state: GameState, cardValue: number): Set<
 
 /**
  * Explains why this capture isn't allowed, or returns null if it is.
- * `cardId` is the card played from the hand. It can take loose table cards and the top cards of
- * other players' capture piles (`pileCardIds`), in one group or several, each adding up to the
- * card, plus any builds worth the same as the card.
+ * `cardId` is the card played from the hand. It can take loose table cards (in one group or
+ * several, each adding up to the card), any builds worth the same as the card, and other
+ * players' top capture-pile cards (`pileCardIds`) of exactly the same value.
  */
 export function getCaptureError(
   state: GameState,
@@ -78,8 +91,11 @@ export function getCaptureError(
     }
   }
 
-  const groupCards = [...getLooseCards(state, tableCardIds), ...getPileCards(state, pileCardIds)];
-  if (groupCards.length > 0 && !splitIntoGroups(groupCards, playedCard.value)) {
+  if (getPileCards(state, pileCardIds).some((card) => card.value !== playedCard.value)) {
+    return "A top card of a capture pile can only be captured by a card of the same value.";
+  }
+  const looseCards = getLooseCards(state, tableCardIds);
+  if (looseCards.length > 0 && !splitIntoGroups(looseCards, playedCard.value)) {
     return `Those cards don't add up to ${playedCard.value}. Each group you capture must add up to ${playedCard.value}.`;
   }
   return getKeepCardError(state, playerId, cardId, buildIds);

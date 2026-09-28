@@ -4,19 +4,24 @@ import type { GameState } from "../models/GameState";
 import { findBuild } from "../rules/BuildRules";
 import { findCapturePileOwnerId, getStealError } from "../rules/StealRules";
 import { getLooseCards } from "../rules/TableRules";
-import { claimBuild, describeTakeOver } from "./BuildEngine";
 import { getTopCard } from "./CapturePile";
 import { IllegalMoveError } from "./IllegalMoveError";
-import { addLogEntry, findCardInHand, getPlayer, takeCardFromHand, takeTableCards } from "./stateHelpers";
+import {
+  addLogEntry,
+  findCardInHand,
+  getPlayer,
+  replaceBuild,
+  takeCardFromHand,
+  takeTableCards,
+} from "./stateHelpers";
 import { endTurn } from "./TurnManager";
 
 /**
  * STEAL: in one move the player takes the top card of another player's capture pile and
- * adds it to a build together with a card from their hand (and any loose table cards),
- * as new sets of the build's value. e.g. hand 7 + stolen A♠ added to a build of 8.
+ * adds it to their own build together with a card from their hand (and any loose table
+ * cards), as new sets of the build's value. e.g. hand 7 + stolen A♠ added to a build of 8.
  *
- * Stealing into an opponent's weak build takes it over. A steal is not a capture,
- * so lastCapturePlayerId stays as it was.
+ * A steal is not a capture, so lastCapturePlayerId stays as it was.
  */
 export function stealIntoBuild(
   state: GameState,
@@ -40,18 +45,13 @@ export function stealIntoBuild(
   const newSets = splitIntoGroups([...getLooseCards(state, tableCardIds), playedCard, stolenCard], build.value)!;
 
   const afterSteal: GameState = {
-    ...claimBuild(takeTableCards(takeCardFromHand(state, playerId, cardId), tableCardIds), playerId, {
+    ...replaceBuild(takeTableCards(takeCardFromHand(state, playerId, cardId), tableCardIds), {
       ...build,
       sets: [...build.sets, ...newSets],
-      ownerId: playerId,
     }),
     capturePiles: { ...state.capturePiles, [victimId]: state.capturePiles[victimId].slice(0, -1) },
   };
 
-  const buildText =
-    build.ownerId === playerId
-      ? `their build of ${build.value}`
-      : `${getPlayer(state, build.ownerId).name}'s build of ${build.value} ${describeTakeOver(state, playerId, buildId)}`;
-  const message = `${player.name} stole ${formatCard(stolenCard)} from ${getPlayer(state, victimId).name}'s capture pile and added ${formatGroups(newSets)} to ${buildText}.`;
+  const message = `${player.name} stole ${formatCard(stolenCard)} from ${getPlayer(state, victimId).name}'s capture pile and added ${formatGroups(newSets)} to their build of ${build.value}.`;
   return endTurn(addLogEntry(afterSteal, message, playerId));
 }
