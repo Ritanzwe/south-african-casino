@@ -1,19 +1,27 @@
-import { formatCard, type Card } from "../cards/Card";
+import { formatCard } from "../cards/Card";
 import { formatGroups, splitIntoGroups } from "../cards/groups";
 import type { GameState } from "../models/GameState";
 import { getCaptureError } from "../rules/CaptureRules";
-import { findCapturePileOwnerId, getPileCards } from "../rules/StealRules";
+import { getPileCards } from "../rules/PileRules";
 import { getLooseCards } from "../rules/TableRules";
 import { addToCapturePile } from "./CapturePile";
 import { IllegalMoveError } from "./IllegalMoveError";
-import { addLogEntry, findCardInHand, getPlayer, takeCardFromHand, takeTableCards } from "./stateHelpers";
+import {
+  addLogEntry,
+  describeGroups,
+  findCardInHand,
+  getPlayer,
+  takeCardFromHand,
+  takeTableCards,
+  takeTopCards,
+} from "./stateHelpers";
 import { endTurn } from "./TurnManager";
 
 /**
  * CAPTURE: the player plays a card from their hand and takes loose table cards that add up to
  * it (in one group or several), any builds of the same value, and other players' top
- * capture-pile cards of the same value (e.g. a 10 takes a 10 on the table and the 10 on top of
- * an opponent's pile).
+ * capture-pile cards of the same value, which can only be taken together with something from
+ * the floor (e.g. a 10 takes a 10 on the table and the 10 on top of an opponent's pile).
  *
  * Everything captured goes onto the player's capture pile in the order it lay, with the
  * capturing card on top. The player becomes the last capturer, and the turn ends.
@@ -42,36 +50,27 @@ export function captureCards(
   const capturedBuilds = state.builds.filter((build) => buildIds.includes(build.id));
   const buildCards = capturedBuilds.flatMap((build) => build.sets.flat());
 
-  // Take each top card off the pile it came from, then add everything to the capturer's pile.
-  const pileOwners = new Map(pileCardIds.map((id) => [id, findCapturePileOwnerId(state, id)!]));
-  const capturePiles = { ...state.capturePiles };
-  for (const ownerId of pileOwners.values()) {
-    capturePiles[ownerId] = capturePiles[ownerId].slice(0, -1);
-  }
-  capturePiles[playerId] = addToCapturePile(
-    capturePiles[playerId],
-    [...buildCards, ...looseCards, ...pileCards],
-    playedCard,
-  );
-
+  const afterTaking = takeTopCards(takeTableCards(takeCardFromHand(state, playerId, cardId), tableCardIds), pileCardIds);
   const afterCapture: GameState = {
-    ...takeTableCards(takeCardFromHand(state, playerId, cardId), tableCardIds),
+    ...afterTaking,
     builds: state.builds.filter((build) => !buildIds.includes(build.id)),
-    capturePiles,
+    capturePiles: {
+      ...afterTaking.capturePiles,
+      [playerId]: addToCapturePile(
+        afterTaking.capturePiles[playerId],
+        [...buildCards, ...looseCards, ...pileCards],
+        playedCard,
+      ),
+    },
     lastCapturePlayerId: playerId,
   };
 
-  /** "10♦", or "10♦ from Ben's pile" for a card taken from someone's capture pile. */
-  const describe = (card: Card) => {
-    const ownerId = pileOwners.get(card.id);
-    return ownerId ? `${formatCard(card)} from ${getPlayer(state, ownerId).name}'s pile` : formatCard(card);
-  };
   const capturedText = [
     ...capturedBuilds.map((build) => {
       const owner = build.ownerId === playerId ? "their" : `${getPlayer(state, build.ownerId).name}'s`;
       return `${owner} build of ${build.value} (${formatGroups(build.sets)})`;
     }),
-    ...groups.map((group) => group.map(describe).join(" + ")),
+    ...(groups.length > 0 ? [describeGroups(state, groups, pileCardIds)] : []),
   ].join(" and ");
   return endTurn(
     addLogEntry(afterCapture, `${player.name} captured ${capturedText} with ${formatCard(playedCard)}.`, playerId),

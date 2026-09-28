@@ -32,7 +32,11 @@ Items marked **(default)** were not asked explicitly. Change them here if they a
   - builds of value V (anyone's build)
 - The player chooses which sets to take, and does not have to take every matching set.
 - Capturing is optional. A player may drift instead, unless they own a build. **(default)**
-- The **top card of another player's capture pile** can be captured by a card of the **same value**: a 10 takes their top 10, together with a 10 on the floor. This works for every value. A top card is **never part of a sum**: a 7 can't take a floor 6 with their top A. Only the top card of each pile, and never from your own pile. (Changed 2026-09-28; previously top cards could only be stolen into builds.)
+- The **top card of another player's capture pile** (value N) is **never taken on its own**. It can only be used when the **floor already makes N** (a floor N, floor cards adding up to N like 6 + 4 for a 10, or a build of N):
+  - **Capture:** your N takes those floor cards (or build) **and** their top N in the same move. Example: floor 5 + their top 5 + your 5. With nothing on the floor making 5, their top 5 can't be eaten.
+  - **Build:** floor cards that already make N, plus their top N, plus your own card, make a new (strong) build of N. Example: floor 6 + 4, their top 10 and your 10. You must still hold an N to capture it later.
+  - A top card is **never part of a sum** here: a 7 can't take a floor 6 with their top A.
+  - Only the top card of each pile, and never from your own pile. (Changed several times on 2026-09-28; this is the final rule.)
 - The captured cards go onto the player's capture pile **in the order they lay on the table**: a build in the order it was built, loose cards in their table order. The **capturing card goes on top**. Nothing is sorted. (Changed 2026-09-28; the original spec sorted the lowest card to the top.)
 - Only a real capture sets `lastCapturePlayerId`. A drift never does.
 

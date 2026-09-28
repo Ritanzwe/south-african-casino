@@ -7,7 +7,7 @@ import type { Move } from "../models/Move";
 import type { BotLevel } from "../models/Player";
 import { findGroupsAddingUpTo } from "../cards/groups";
 import { getCapturableCardIds, getMatchingTopCards } from "../rules/CaptureRules";
-import { getStealableCards } from "../rules/StealRules";
+import { getStealableCards } from "../rules/PileRules";
 import { SOUTH_AFRICAN_CASINO_RULES as RULES } from "../rules/SouthAfricanCasinoRules";
 import { randomInt, type RandomFn } from "../utils/random";
 

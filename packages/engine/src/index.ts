@@ -17,6 +17,7 @@ export * from "./rules/TableRules";
 export * from "./rules/BuildRules";
 export * from "./rules/DriftRules";
 export * from "./rules/CaptureRules";
+export * from "./rules/PileRules";
 export * from "./rules/StealRules";
 export * from "./rules/ScoringRules";
 

@@ -75,6 +75,7 @@ Mark items with `[x]` when done.
   - [x] Main action button stands out from the others, to avoid e.g. ADD TO BUILD by mistake
 - [x] 2026-09-28: a matching card captures other players' top capture-pile cards too (e.g. a 10 takes the floor 10 and an opponent's top 10), for every value
 - [x] 2026-09-28: top cards are only captured by the same value (never part of a sum); another player's build can't take same-value sets or steals (only raised if weak and under 10, or captured)
+- [x] 2026-09-28: a top card is never taken on its own; only with a matching floor build (floor N, floor cards making N, or a build of N): captured together with it, or built into a new build of N (Examples 1–4 in bugReport.test.ts)
 
 ## Open questions (ask before the stage that needs them)
 - None right now.

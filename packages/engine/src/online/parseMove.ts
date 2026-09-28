@@ -35,7 +35,7 @@ export function parseMove(input: unknown): Move | null {
       return { action: "CAPTURE", cardId, tableCardIds, buildIds, pileCardIds };
     case "BUILD":
       return typeof move.value === "number" && Number.isInteger(move.value)
-        ? { action: "BUILD", cardId, tableCardIds, value: move.value }
+        ? { action: "BUILD", cardId, tableCardIds, value: move.value, pileCardIds }
         : null;
     case "ADD_TO_BUILD":
       return isId(move.buildId) ? { action: "ADD_TO_BUILD", cardId, buildId: move.buildId, tableCardIds } : null;

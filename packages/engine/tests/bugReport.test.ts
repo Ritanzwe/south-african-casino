@@ -1,9 +1,10 @@
-// The scenarios from the bug report of 2026-09-28, kept as tests so they stay fixed.
+// The scenarios from the bug reports of 2026-09-28, kept as tests so they stay fixed.
 
 import { describe, expect, it } from "vitest";
 import {
   captureCards,
   createBuild,
+  getCapturableCardIds,
   getCreateBuildError,
   getLegalMoves,
   getTopCard,
@@ -11,7 +12,7 @@ import {
   parseMove,
   raiseBuild,
 } from "../src";
-import { cards, ids, makeBuild, scenario } from "./helpers";
+import { cards, ids, makeBuild, scenario, withPiles } from "./helpers";
 
 // In these tests p1 is "Player B" (whose turn it is) and p2 is "Player A".
 
@@ -98,6 +99,80 @@ describe("Test 4: several floor cards and builds", () => {
     expect(ids(next.tableCards)).toEqual(["9-diamonds"]);
     expect(next.builds).toEqual([]);
     expect(next.capturePiles.p1).toHaveLength(7);
+  });
+});
+
+// "Capturing an opponent's card requires a floor build": another player's top card N can only be
+// used together with floor cards that already make N (or a build of N).
+describe("Top cards need a matching floor build", () => {
+  it("Example 1: a 5 can't eat another player's top 5 when nothing on the floor makes 5", () => {
+    const state = withPiles(scenario({ p1: "5S 9C" }, "8D"), { p2: "5H" });
+    expect(() => captureCards(state, "p1", "5-spades", [], [], ["5-hearts"])).toThrow(
+      "You can't take another player's top card on its own.",
+    );
+    expect(getLegalMoves(state, "p1").some((move) => move.action === "CAPTURE")).toBe(false);
+    expect(getCapturableCardIds(state, 5, "p1")).toEqual(new Set());
+  });
+
+  it("Example 2: floor 5 + their top 5 + your 5 is a legal capture", () => {
+    const state = withPiles(scenario({ p1: "5S 9C" }, "5D"), { p2: "5H" });
+    const next = captureCards(state, "p1", "5-spades", ["5-diamonds"], [], ["5-hearts"]);
+    expect(ids(next.capturePiles.p1)).toEqual(["5-diamonds", "5-hearts", "5-spades"]);
+    expect(next.capturePiles.p2).toEqual([]);
+  });
+
+  it("Example 3: floor 6 + 4 makes 10, so your 10 can take it and their top 10", () => {
+    const state = withPiles(scenario({ p1: "10S 9C" }, "6D 4C"), { p2: "10H" });
+    const next = captureCards(state, "p1", "10-spades", ["6-diamonds", "4-clubs"], [], ["10-hearts"]);
+    expect(ids(next.capturePiles.p1)).toEqual(["6-diamonds", "4-clubs", "10-hearts", "10-spades"]);
+    expect(next.log.at(-1)?.message).toBe("Player 1 captured 6♦ + 4♣ and 10♥ from Player 2's pile with 10♠.");
+  });
+
+  it("Example 4: floor 6 + 4, their top 10 and your 10 make a stronger build of 10 to capture later", () => {
+    const state = withPiles(scenario({ p1: "10S 10C" }, "6D 4C"), { p2: "3S 10H" });
+    const next = createBuild(state, "p1", "10-spades", ["6-diamonds", "4-clubs"], 10, ["10-hearts"]);
+
+    expect(next.builds).toEqual([
+      { id: "build-10-spades", value: 10, ownerId: "p1", sets: [cards("6D 4C"), cards("10S"), cards("10H")] },
+    ]);
+    expect(isStrongBuild(next.builds[0])).toBe(true);
+    expect(ids(next.capturePiles.p2)).toEqual(["3-spades"]);
+    expect(next.log.at(-1)?.message).toBe(
+      "Player 1 made a build of 10 (6♦ + 4♣ and 10♠ and 10♥ from Player 2's pile).",
+    );
+  });
+
+  it("Example 4 needs the floor cards to make the value on their own", () => {
+    // Floor 7 only makes 10 with the hand's 3, so their top 10 can't come in.
+    const state = withPiles(scenario({ p1: "3S 10C" }, "7D"), { p2: "10H" });
+    expect(getCreateBuildError(state, "p1", "3-spades", ["7-diamonds"], 10, ["10-hearts"])).toBe(
+      "To use another player's top card, the floor cards must already make 10 on their own (like 6 + 4 for a 10).",
+    );
+  });
+
+  it("Example 4 still needs a 10 kept in hand to capture the build later", () => {
+    const state = withPiles(scenario({ p1: "10S 4C" }, "6D 4H"), { p2: "10H" });
+    expect(getCreateBuildError(state, "p1", "10-spades", ["6-diamonds", "4-hearts"], 10, ["10-hearts"])).toBe(
+      "You need to keep a 10 in your hand to capture this build later.",
+    );
+  });
+
+  it("only lets a top card into a build of its own value", () => {
+    const state = withPiles(scenario({ p1: "10S 10C" }, "6D 4C"), { p2: "9H" });
+    expect(getCreateBuildError(state, "p1", "10-spades", ["6-diamonds", "4-clubs"], 10, ["9-hearts"])).toBe(
+      "Another player's top card can only go into a build of its own value.",
+    );
+  });
+
+  it("offers the Example 4 build among the legal moves", () => {
+    const state = withPiles(scenario({ p1: "10S 10C" }, "6D 4C"), { p2: "10H" });
+    expect(getLegalMoves(state, "p1")).toContainEqual({
+      action: "BUILD",
+      cardId: "10-spades",
+      tableCardIds: ["6-diamonds", "4-clubs"],
+      value: 10,
+      pileCardIds: ["10-hearts"],
+    });
   });
 });
 

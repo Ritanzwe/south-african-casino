@@ -1,16 +1,20 @@
 import type { Card } from "../cards/Card";
-import { splitIntoGroups } from "../cards/groups";
+import { findGroupsAddingUpTo, splitIntoGroups } from "../cards/groups";
 import { findCardInHand, getPlayer } from "../engine/stateHelpers";
 import type { Build } from "../models/Build";
 import type { GameState } from "../models/GameState";
+import { getPileCards, getPileCardsError } from "./PileRules";
 import { SOUTH_AFRICAN_CASINO_RULES as RULES } from "./SouthAfricanCasinoRules";
 import { getLooseCards, getLooseCardsError } from "./TableRules";
 import { getTurnError } from "./TurnRules";
 
 const STRONG_BUILD = "That build is strong, so it can't be changed. It can only be captured.";
 
-/** "an 8", "a 7" and so on, for messages. */
+/** "an Ace", "an 8", "a 7" and so on, for messages. */
 export function valueWithArticle(value: number): string {
+  if (value === 1) {
+    return "an Ace";
+  }
   return `${value === 8 ? "an" : "a"} ${value}`;
 }
 
@@ -81,6 +85,10 @@ export function getKeepCardError(
  * (one set like 3 + 5, or several like 3 + 5 and 8), and the player must still hold a card
  * of that value afterwards to capture the build later. If the player already owns a build
  * of the same value, the new sets join it.
+ *
+ * Other players' top capture-pile cards (`pileCardIds`) can go in too, each as its own set,
+ * but only when they are worth exactly `value` and the chosen floor cards already make
+ * `value` on their own (e.g. floor 6 + 4, their top 10 and your 10 make a strong build of 10).
  */
 export function getCreateBuildError(
   state: GameState,
@@ -88,6 +96,7 @@ export function getCreateBuildError(
   cardId: string,
   tableCardIds: readonly string[],
   value: number,
+  pileCardIds: readonly string[] = [],
 ): string | null {
   const turnError = getTurnError(state, playerId);
   if (turnError) {
@@ -104,6 +113,10 @@ export function getCreateBuildError(
   if (looseError) {
     return looseError;
   }
+  const pileError = getPileCardsError(state, playerId, pileCardIds);
+  if (pileError) {
+    return pileError;
+  }
   if (!Number.isInteger(value) || value < 2 || value > RULES.maxBuildValue) {
     return `A build must be worth between 2 and ${RULES.maxBuildValue}.`;
   }
@@ -111,7 +124,16 @@ export function getCreateBuildError(
   if (secondBuildError) {
     return secondBuildError;
   }
-  if (!splitIntoGroups([...getLooseCards(state, tableCardIds), playedCard], value)) {
+  const looseCards = getLooseCards(state, tableCardIds);
+  if (pileCardIds.length > 0) {
+    if (getPileCards(state, pileCardIds).some((card) => card.value !== value)) {
+      return `Another player's top card can only go into a build of its own value.`;
+    }
+    if (findGroupsAddingUpTo(looseCards, value).length === 0) {
+      return `To use another player's top card, the floor cards must already make ${value} on their own (like 6 + 4 for a 10).`;
+    }
+  }
+  if (!splitIntoGroups([...looseCards, playedCard], value)) {
     return `Those cards don't make a build of ${value}. Every set in a build must add up to ${value}.`;
   }
   if (!keepsValueAfterPlaying(getPlayer(state, playerId).hand, cardId, value)) {
@@ -126,8 +148,9 @@ export function canCreateBuild(
   cardId: string,
   tableCardIds: readonly string[],
   value: number,
+  pileCardIds: readonly string[] = [],
 ): boolean {
-  return getCreateBuildError(state, playerId, cardId, tableCardIds, value) === null;
+  return getCreateBuildError(state, playerId, cardId, tableCardIds, value, pileCardIds) === null;
 }
 
 /** Every value these cards could be built into, e.g. hand 2 + loose 2 → [2, 4] if you hold a 2 and a 4. */
@@ -136,10 +159,11 @@ export function getPossibleBuildValues(
   playerId: string,
   cardId: string,
   tableCardIds: readonly string[],
+  pileCardIds: readonly string[] = [],
 ): number[] {
   const values: number[] = [];
   for (let value = 2; value <= RULES.maxBuildValue; value++) {
-    if (canCreateBuild(state, playerId, cardId, tableCardIds, value)) {
+    if (canCreateBuild(state, playerId, cardId, tableCardIds, value, pileCardIds)) {
       values.push(value);
     }
   }

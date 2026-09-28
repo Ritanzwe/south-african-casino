@@ -9,6 +9,7 @@ import {
   getHandSize,
   getMoveError,
   getOwnedBuild,
+  getPileCards,
   getPlayer,
   getPlayerIdAfter,
   getPossibleBuildValues,
@@ -91,9 +92,10 @@ function getActions(state: GameState, playerId: string, selection: Selection): A
     actions.push({ label: "CAPTURE", move: capture });
   }
 
-  if (buildIds.length === 0 && pileCardIds.length === 0) {
-    for (const value of getPossibleBuildValues(state, playerId, cardId, tableCardIds)) {
-      actions.push({ label: `BUILD ${value}`, move: { action: "BUILD", cardId, tableCardIds, value } });
+  if (buildIds.length === 0 && tableCardIds.length > 0) {
+    for (const value of getPossibleBuildValues(state, playerId, cardId, tableCardIds, pileCardIds)) {
+      const build: Move = { action: "BUILD", cardId, tableCardIds, value };
+      actions.push({ label: `BUILD ${value}`, move: pileCardIds.length > 0 ? { ...build, pileCardIds } : build });
     }
   }
 
@@ -149,12 +151,16 @@ function describeSelection(state: GameState, playerId: string, selection: Select
           : { action: "RAISE_BUILD", cardId, buildId: build.id, tableCardIds };
     }
   }
-  if (buildIds.length === 0 && pileCardIds.length === 0) {
-    // Table cards that can't be captured with this card are probably meant for a build.
+  if (buildIds.length === 0 && tableCardIds.length > 0) {
+    // Table cards that can't be captured with this card are probably meant for a build: of the
+    // chosen top card's value if there is one, otherwise of everything added up.
     const looseCards = state.tableCards.filter((card) => tableCardIds.includes(card.id));
-    const buildValue = handCard.value + looseCards.reduce((sum, card) => sum + card.value, 0);
+    const buildValue =
+      pileCardIds.length > 0
+        ? getPileCards(state, pileCardIds)[0].value
+        : handCard.value + looseCards.reduce((sum, card) => sum + card.value, 0);
     if (!splitIntoGroups(looseCards, handCard.value) && buildValue <= RULES.maxBuildValue) {
-      attempted = { action: "BUILD", cardId, tableCardIds, value: buildValue };
+      attempted = { action: "BUILD", cardId, tableCardIds, value: buildValue, pileCardIds };
     }
   }
   return getMoveError(state, playerId, attempted) ?? "";

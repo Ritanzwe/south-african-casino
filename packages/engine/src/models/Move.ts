@@ -14,8 +14,11 @@ export type Move =
    * other players' capture piles (`pileCardIds`).
    */
   | { action: "CAPTURE"; cardId: string; tableCardIds: string[]; buildIds?: string[]; pileCardIds?: string[] }
-  /** Make a new build worth `value` from `cardId` and loose table cards. */
-  | { action: "BUILD"; cardId: string; tableCardIds: string[]; value: number }
+  /**
+   * Make a new build worth `value` from `cardId` and loose table cards, plus any other players'
+   * top cards of that value (`pileCardIds`) when the floor cards already make `value`.
+   */
+  | { action: "BUILD"; cardId: string; tableCardIds: string[]; value: number; pileCardIds?: string[] }
   /** Add new sets of the same value (`cardId` plus any loose table cards) to a build. */
   | { action: "ADD_TO_BUILD"; cardId: string; buildId: string; tableCardIds: string[] }
   /** Raise an opponent's weak build by adding `cardId` (and any loose table cards) to it. */

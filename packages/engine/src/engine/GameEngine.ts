@@ -8,7 +8,8 @@ import { getAddToBuildError, getCreateBuildError, getRaiseBuildError } from "../
 import { getCaptureError, getMatchingTopCards } from "../rules/CaptureRules";
 import { getDriftError } from "../rules/DriftRules";
 import { SOUTH_AFRICAN_CASINO_RULES as RULES, isSupportedPlayerCount } from "../rules/SouthAfricanCasinoRules";
-import { getStealError, getStealableCards } from "../rules/StealRules";
+import { getStealableCards } from "../rules/PileRules";
+import { getStealError } from "../rules/StealRules";
 import { getTurnError } from "../rules/TurnRules";
 import { randomInt, type RandomFn } from "../utils/random";
 import { addToBuild, createBuild, raiseBuild } from "./BuildEngine";
@@ -131,7 +132,7 @@ export function getMoveError(state: GameState, playerId: string, move: Move): st
     case "CAPTURE":
       return getCaptureError(state, playerId, move.cardId, move.tableCardIds, move.buildIds, move.pileCardIds);
     case "BUILD":
-      return getCreateBuildError(state, playerId, move.cardId, move.tableCardIds, move.value);
+      return getCreateBuildError(state, playerId, move.cardId, move.tableCardIds, move.value, move.pileCardIds);
     case "ADD_TO_BUILD":
       return getAddToBuildError(state, playerId, move.cardId, move.buildId, move.tableCardIds);
     case "RAISE_BUILD":
@@ -176,9 +177,6 @@ function candidateMoves(state: GameState, playerId: string): Move[] {
       const move: Move = { action: "CAPTURE", cardId: card.id, tableCardIds, ...(buildIds ? { buildIds } : {}) };
       return matchingTops.length > 0 ? [move, { ...move, pileCardIds: matchingTops }] : [move];
     };
-    if (matchingTops.length > 0) {
-      moves.push({ action: "CAPTURE", cardId: card.id, tableCardIds: [], pileCardIds: matchingTops });
-    }
     const groups = findGroupsAddingUpTo(state.tableCards, card.value).map(ids);
     for (const group of groups) {
       moves.push(...capture(group));
@@ -195,6 +193,24 @@ function candidateMoves(state: GameState, playerId: string): Move[] {
       const partner = value === card.value ? value : value - card.value;
       for (const group of findGroupsAddingUpTo(state.tableCards, partner)) {
         moves.push({ action: "BUILD", cardId: card.id, tableCardIds: ids(group), value });
+      }
+    }
+
+    // Build with another player's top card: floor cards that already make its value, the top card,
+    // and this card (on its own if it's the same value, or with more floor cards).
+    for (const top of getStealableCards(state, playerId)) {
+      for (const floorGroup of findGroupsAddingUpTo(state.tableCards, top.value)) {
+        const otherFloorCards = state.tableCards.filter((c) => !floorGroup.includes(c));
+        const partners = card.value === top.value ? [[]] : findGroupsAddingUpTo(otherFloorCards, top.value - card.value);
+        for (const partner of partners) {
+          moves.push({
+            action: "BUILD",
+            cardId: card.id,
+            tableCardIds: ids([...floorGroup, ...partner]),
+            value: top.value,
+            pileCardIds: [top.id],
+          });
+        }
       }
     }
 
@@ -259,7 +275,7 @@ export function applyMove(state: GameState, playerId: string, move: Move): GameS
     case "CAPTURE":
       return captureCards(state, playerId, move.cardId, move.tableCardIds, move.buildIds, move.pileCardIds);
     case "BUILD":
-      return createBuild(state, playerId, move.cardId, move.tableCardIds, move.value);
+      return createBuild(state, playerId, move.cardId, move.tableCardIds, move.value, move.pileCardIds);
     case "ADD_TO_BUILD":
       return addToBuild(state, playerId, move.cardId, move.buildId, move.tableCardIds);
     case "RAISE_BUILD":

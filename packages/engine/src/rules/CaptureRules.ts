@@ -3,7 +3,7 @@ import { findGroupsAddingUpTo, splitIntoGroups } from "../cards/groups";
 import { findCardInHand } from "../engine/stateHelpers";
 import type { GameState } from "../models/GameState";
 import { findBuild, getKeepCardError, valueWithArticle } from "./BuildRules";
-import { getPileCards, getStealCardError, getStealableCards } from "./StealRules";
+import { getPileCards, getPileCardsError, getStealableCards } from "./PileRules";
 import { getLooseCards, getLooseCardsError } from "./TableRules";
 import { getTurnError } from "./TurnRules";
 
@@ -14,11 +14,14 @@ export function getCaptureGroups(state: GameState, cardValue: number): Card[][] 
 
 /**
  * Ids of the cards a card of this value could capture, e.g. to highlight them: loose table cards
- * and, when `playerId` is given, the other players' top capture-pile cards of the same value.
+ * and, when `playerId` is given, the other players' top capture-pile cards of the same value
+ * (only if the floor also has something of that value to capture, see getCaptureError).
  */
 export function getCapturableCardIds(state: GameState, cardValue: number, playerId?: string): Set<string> {
-  const ids = new Set(getCaptureGroups(state, cardValue).flatMap((group) => group.map((card) => card.id)));
-  if (playerId) {
+  const groups = getCaptureGroups(state, cardValue);
+  const ids = new Set(groups.flatMap((group) => group.map((card) => card.id)));
+  const floorHasValue = groups.length > 0 || state.builds.some((build) => build.value === cardValue);
+  if (playerId && floorHasValue) {
     for (const topCard of getMatchingTopCards(state, playerId, cardValue)) {
       ids.add(topCard.id);
     }
@@ -43,7 +46,8 @@ export function getCapturableBuildIds(state: GameState, cardValue: number): Set<
  * Explains why this capture isn't allowed, or returns null if it is.
  * `cardId` is the card played from the hand. It can take loose table cards (in one group or
  * several, each adding up to the card), any builds worth the same as the card, and other
- * players' top capture-pile cards (`pileCardIds`) of exactly the same value.
+ * players' top capture-pile cards (`pileCardIds`) of exactly the same value. A top card is
+ * never taken on its own: the same capture must take floor cards or a build of that value.
  */
 export function getCaptureError(
   state: GameState,
@@ -69,14 +73,9 @@ export function getCaptureError(
   if (looseError) {
     return looseError;
   }
-  if (new Set(pileCardIds).size !== pileCardIds.length) {
-    return "You chose the same card twice.";
-  }
-  for (const pileCardId of pileCardIds) {
-    const pileError = getStealCardError(state, playerId, pileCardId);
-    if (pileError) {
-      return pileError;
-    }
+  const pileError = getPileCardsError(state, playerId, pileCardIds);
+  if (pileError) {
+    return pileError;
   }
   if (new Set(buildIds).size !== buildIds.length) {
     return "You chose the same build twice.";
@@ -93,6 +92,9 @@ export function getCaptureError(
 
   if (getPileCards(state, pileCardIds).some((card) => card.value !== playedCard.value)) {
     return "A top card of a capture pile can only be captured by a card of the same value.";
+  }
+  if (pileCardIds.length > 0 && tableCardIds.length === 0 && buildIds.length === 0) {
+    return `You can't take another player's top card on its own. There must be ${valueWithArticle(playedCard.value)} on the floor (a card, cards that add up to it, or a build) that you capture with it.`;
   }
   const looseCards = getLooseCards(state, tableCardIds);
   if (looseCards.length > 0 && !splitIntoGroups(looseCards, playedCard.value)) {

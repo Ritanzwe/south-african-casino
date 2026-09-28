@@ -10,15 +10,18 @@ import {
   getRaiseBuildError,
   getRaisedValue,
 } from "../rules/BuildRules";
+import { getPileCards } from "../rules/PileRules";
 import { getLooseCards } from "../rules/TableRules";
 import { IllegalMoveError } from "./IllegalMoveError";
 import {
   addLogEntry,
+  describeGroups,
   findCardInHand,
   getPlayer,
   replaceBuild,
   takeCardFromHand,
   takeTableCards,
+  takeTopCards,
 } from "./stateHelpers";
 import { endTurn } from "./TurnManager";
 
@@ -50,6 +53,9 @@ export function describeTakeOver(state: GameState, playerId: string, buildId: st
  * BUILD: the player combines a card from their hand with loose table cards into a build worth
  * `value`, e.g. table 5 + hand 3 → a build of 8. If they already own a build of that value,
  * the new sets join it; otherwise it becomes their new build.
+ *
+ * Other players' top cards of the same value (`pileCardIds`) can go in as extra sets when the
+ * floor cards already make `value`, e.g. floor 6 + 4, their top 10 and your 10.
  */
 export function createBuild(
   state: GameState,
@@ -57,26 +63,31 @@ export function createBuild(
   cardId: string,
   tableCardIds: string[],
   value: number,
+  pileCardIds: string[] = [],
 ): GameState {
-  const error = getCreateBuildError(state, playerId, cardId, tableCardIds, value);
+  const error = getCreateBuildError(state, playerId, cardId, tableCardIds, value, pileCardIds);
   if (error) {
     throw new IllegalMoveError(error);
   }
 
   const player = getPlayer(state, playerId);
   const playedCard = findCardInHand(state, playerId, cardId)!;
-  // The table cards were there first; the played card goes on top of them.
-  const sets = splitIntoGroups([...getLooseCards(state, tableCardIds), playedCard], value)!;
+  // The table cards were there first; the played card goes on top of them, then any top cards.
+  const sets = [
+    ...splitIntoGroups([...getLooseCards(state, tableCardIds), playedCard], value)!,
+    ...getPileCards(state, pileCardIds).map((card) => [card]),
+  ];
+  const setsText = describeGroups(state, sets, pileCardIds);
   const own = getOwnedBuild(state, playerId);
-  const afterPlay = takeTableCards(takeCardFromHand(state, playerId, cardId), tableCardIds);
+  const afterPlay = takeTopCards(takeTableCards(takeCardFromHand(state, playerId, cardId), tableCardIds), pileCardIds);
 
   if (own) {
     const joined = replaceBuild(afterPlay, { ...own, sets: [...own.sets, ...sets] });
-    return endTurn(addLogEntry(joined, `${player.name} added ${formatGroups(sets)} to their build of ${value}.`, playerId));
+    return endTurn(addLogEntry(joined, `${player.name} added ${setsText} to their build of ${value}.`, playerId));
   }
   const build: Build = { id: `build-${playedCard.id}`, sets, value, ownerId: playerId };
   const afterBuild: GameState = { ...afterPlay, builds: [...afterPlay.builds, build] };
-  return endTurn(addLogEntry(afterBuild, `${player.name} made a build of ${value} (${formatGroups(sets)}).`, playerId));
+  return endTurn(addLogEntry(afterBuild, `${player.name} made a build of ${value} (${setsText}).`, playerId));
 }
 
 /**

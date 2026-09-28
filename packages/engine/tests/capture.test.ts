@@ -229,9 +229,16 @@ describe("capturing the top cards of other players' capture piles", () => {
     );
   });
 
-  it("lists these captures among the legal moves", () => {
+  it("lists these captures among the legal moves, never the top card on its own", () => {
     const state = withPiles(scenario({ p1: "10S 4C" }, "10H"), { p2: "3C 10D" });
-    expect(getLegalMoves(state, "p1")).toContainEqual({
+    const moves = getLegalMoves(state, "p1");
+    expect(moves).toContainEqual({
+      action: "CAPTURE",
+      cardId: "10-spades",
+      tableCardIds: ["10-hearts"],
+      pileCardIds: ["10-diamonds"],
+    });
+    expect(moves).not.toContainEqual({
       action: "CAPTURE",
       cardId: "10-spades",
       tableCardIds: [],
