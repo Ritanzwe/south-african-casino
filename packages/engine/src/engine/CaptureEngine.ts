@@ -20,8 +20,9 @@ import { endTurn } from "./TurnManager";
 /**
  * CAPTURE: the player plays a card from their hand and takes loose table cards that add up to
  * it (in one group or several), any builds of the same value, and other players' top
- * capture-pile cards of the same value, which can only be taken together with something from
- * the floor (e.g. a 10 takes a 10 on the table and the 10 on top of an opponent's pile).
+ * capture-pile cards, which can only be taken together with a floor build of the value
+ * (e.g. a 10 takes a 10 on the table and the 10 on top of an opponent's pile, or a 9 takes a
+ * build of 9 and a floor 6 with the 3 on top of an opponent's pile).
  *
  * Everything captured goes onto the player's capture pile in the order it lay, with the
  * capturing card on top. The player becomes the last capturer, and the turn ends.
@@ -44,9 +45,9 @@ export function captureCards(
   const playedCard = findCardInHand(state, playerId, cardId)!;
   const looseCards = getLooseCards(state, tableCardIds);
   const pileCards = getPileCards(state, pileCardIds);
-  // Loose cards form groups that add up; each top card matches the played card on its own.
-  const looseGroups = looseCards.length > 0 ? splitIntoGroups(looseCards, playedCard.value)! : [];
-  const groups = [...looseGroups, ...pileCards.map((card) => [card])];
+  // Loose cards and any top cards form groups that each add up to the played card.
+  const groupCards = [...looseCards, ...pileCards];
+  const groups = groupCards.length > 0 ? splitIntoGroups(groupCards, playedCard.value)! : [];
   const capturedBuilds = state.builds.filter((build) => buildIds.includes(build.id));
   const buildCards = capturedBuilds.flatMap((build) => build.sets.flat());
 

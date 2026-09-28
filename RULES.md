@@ -33,9 +33,9 @@ Items marked **(default)** were not asked explicitly. Change them here if they a
 - The player chooses which sets to take, and does not have to take every matching set.
 - Capturing is optional. A player may drift instead, unless they own a build. **(default)**
 - The **top card of another player's capture pile** (value N) is **never taken on its own**. It can only be used when the **floor already makes N** (a floor N, floor cards adding up to N like 6 + 4 for a 10, or a build of N):
-  - **Capture:** your N takes those floor cards (or build) **and** their top N in the same move. Example: floor 5 + their top 5 + your 5. With nothing on the floor making 5, their top 5 can't be eaten.
+  - **Capture:** your N takes those floor cards (or build) **and** their top card in the same move. Their top card may be **on its own or part of a sum** with more floor cards; every group must add up to N. Examples: floor 5 + their top 5 + your 5; your build of 9 + a floor 6 with their top 3 (= 9), taken with your 9. With nothing on the floor making N, their top card can't be eaten: a 7 can't take a floor 6 with their top A. (Sums allowed since 2026-09-28, screenshot 1.)
   - **Build:** floor cards that already make N (or your own build of N), plus their top card, plus your own card, make a (strong) build of N. Every set must add up to N, and their top card may be **on its own or part of a sum**. Examples: floor 6 + 4, their top 10 and your 10; floor 9, your 4 + their top 5 (= 9). You must still hold an N to capture it later. (Sums allowed since 2026-09-28.)
-  - When **capturing**, a top card is **never part of a sum**: a 7 can't take a floor 6 with their top A. With nothing on the floor making the value, a top card can't be used at all.
+  - The floor cards that make N have to be **separate** from the ones in the top card's sum: with only a floor 6 + 3, a 9 can't take the 6 with their top 3 instead.
   - Only the top card of each pile, and never from your own pile. (Changed several times on 2026-09-28; this is the final rule.)
 - The captured cards go onto the player's capture pile **in the order they lay on the table**: a build in the order it was built, loose cards in their table order. The **capturing card goes on top**. Nothing is sorted. (Changed 2026-09-28; the original spec sorted the lowest card to the top.)
 - Only a real capture sets `lastCapturePlayerId`. A drift never does.
@@ -63,6 +63,7 @@ Items marked **(default)** were not asked explicitly. Change them here if they a
 
 ### An opponent's build
 - **Weak** and worth less than 10: you may take it over by **raising** ("topping") its value with **one card from your hand, plus any loose table cards** (e.g. 2+4 = 6, add a hand A and a table 2 → 9, while holding a 9). You become the owner. A raised build is still weak, so another player can raise it again. (Floor cards allowed since 2026-09-28.)
+  - Screenshot 2 (2026-09-28): their build of 4 (3 + A) and a floor 4 become **one build** of yours: with your A it is 9 (you hold a 9), with your 2 it is 10 (you hold a 10). Your 8 can't: 4 + 4 + 8 = 16, over 10.
 - You can **never add a set of the same value** to another player's build, or steal into it. At the same value it can only be captured. (Changed 2026-09-28; previously a same-value set took over a weak build.)
 - **Strong**, or **worth 10**: you cannot change it. You can only capture it.
 

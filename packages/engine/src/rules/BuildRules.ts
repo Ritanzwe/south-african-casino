@@ -281,7 +281,7 @@ export function getRaiseBuildError(
   }
   const newValue = getRaisedValue(state, build, playedCard, tableCardIds);
   if (newValue > RULES.maxBuildValue) {
-    return `A build can't be worth more than ${RULES.maxBuildValue}.`;
+    return `That would make ${newValue}. A build can't be worth more than ${RULES.maxBuildValue}.`;
   }
   const secondBuildError = getSecondBuildError(state, playerId, newValue);
   if (secondBuildError) {

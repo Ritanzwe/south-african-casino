@@ -98,8 +98,10 @@ export function Rules({ onClose }: RulesProps) {
             <li>
               <b>Capture:</b> take loose cards that add up to your card, in one group or several (an 8 can take an 8
               and 5 + 3 together), plus any build of the same value. You choose which groups to take. Another
-              player's top card of the same value can come too, but never on its own: only when you also take a
-              matching card, cards adding up to it, or a build from the floor (floor 5 + their top 5 with your 5).
+              player's top card can come too, but never on its own: only when you also take a matching card,
+              cards adding up to it, or a build from the floor. It can match your card, or add up to it with
+              more floor cards: floor 5 + their top 5 with your 5, or your build of 9 + a floor 6 with their top
+              3 with your 9.
             </li>
             <li>
               <b>Build:</b> combine your card with loose cards to make a value you hold another card of, e.g. 3 + 5 =
@@ -148,9 +150,9 @@ export function Rules({ onClose }: RulesProps) {
         <Section title="Capture piles">
           <p>
             Captured cards go face up on your pile in the order they lay on the table (a build in the order it was
-            built), with your capturing card on top. Only the top card of a pile can ever be taken: captured with
-            a card of the same value together with a matching floor build, built into a build together with
-            floor cards that already make its value, or stolen into your own build.
+            built), with your capturing card on top. Only the top card of a pile can ever be taken: captured
+            together with a floor build of your card's value, built into a build together with floor cards that
+            already make its value, or stolen into your own build.
           </p>
         </Section>
 

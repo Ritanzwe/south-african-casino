@@ -7,6 +7,7 @@ import {
   getCapturableCardIds,
   getCreateBuildError,
   getLegalMoves,
+  getRaiseBuildError,
   getTopCard,
   isStrongBuild,
   parseMove,
@@ -264,6 +265,12 @@ describe("Test 5: an opponent's build plus floor cards", () => {
     });
   });
 
+  it("says what the build would be worth when it's over 10", () => {
+    expect(getRaiseBuildError(state, "p1", "A-hearts", "build-p2", ["7-diamonds"])).toBe(
+      "That would make 14. A build can't be worth more than 10.",
+    );
+  });
+
   it("accepts floor cards in a raise sent over the network", () => {
     expect(parseMove({ action: "RAISE_BUILD", cardId: "A-hearts", buildId: "build-p2", tableCardIds: ["2-clubs"] })).toEqual({
       action: "RAISE_BUILD",
@@ -271,5 +278,77 @@ describe("Test 5: an opponent's build plus floor cards", () => {
       buildId: "build-p2",
       tableCardIds: ["2-clubs"],
     });
+  });
+});
+
+// The two screenshots sent later that day.
+describe("Screenshot 1: a top card in a sum, captured with your build", () => {
+  // Your strong build of 9 (9♦, 9♥), floor 5♠ and 6♠, Player 2's top 3♠, and your last 9♣.
+  const state = withPiles({ ...scenario({ p1: "9C" }, "5S 6S"), builds: [makeBuild("p1", ["9D", "9H"])] }, { p2: "7C 3S" });
+
+  it("takes your build of 9, and the floor 6 with their top 3 (6 + 3 = 9), with your 9", () => {
+    const next = captureCards(state, "p1", "9-clubs", ["6-spades"], ["build-p1"], ["3-spades"]);
+    expect(ids(next.capturePiles.p1)).toEqual(["9-diamonds", "9-hearts", "6-spades", "3-spades", "9-clubs"]);
+    expect(ids(next.capturePiles.p2)).toEqual(["7-clubs"]);
+    expect(ids(next.tableCards)).toEqual(["5-spades"]);
+    expect(next.builds).toEqual([]);
+  });
+
+  it("lists that capture among the legal moves and lights up the 6 and the 3", () => {
+    expect(getLegalMoves(state, "p1")).toContainEqual({
+      action: "CAPTURE",
+      cardId: "9-clubs",
+      tableCardIds: ["6-spades"],
+      buildIds: ["build-p1"],
+      pileCardIds: ["3-spades"],
+    });
+    expect(getCapturableCardIds(state, 9, "p1")).toEqual(new Set(["6-spades", "3-spades"]));
+  });
+
+  it("still won't take the 6 and their 3 without a build or floor cards making 9", () => {
+    const noBuild = withPiles(scenario({ p1: "9C 2H" }, "5S 6S"), { p2: "7C 3S" });
+    expect(() => captureCards(noBuild, "p1", "9-clubs", ["6-spades"], [], ["3-spades"])).toThrow(
+      "You can't take another player's top card on its own.",
+    );
+    expect(getCapturableCardIds(noBuild, 9, "p1")).toEqual(new Set());
+  });
+
+  it("won't light up a sum that needs the only floor cards making 9", () => {
+    // Floor 6 + 3 makes 9, but 6 + their 3 would leave nothing on the floor making 9.
+    const shared = withPiles(scenario({ p1: "9C 2H" }, "6S 3H"), { p2: "7C 3S" });
+    expect(getCapturableCardIds(shared, 9, "p1")).toEqual(new Set(["6-spades", "3-hearts"]));
+    expect(() => captureCards(shared, "p1", "9-clubs", ["6-spades"], [], ["3-spades"])).toThrow(
+      "You can't take another player's top card on its own.",
+    );
+  });
+});
+
+describe("Screenshot 2: their build of 4 and a floor 4 made into one build", () => {
+  // Player 2's weak build of 4 (3♦ + A♥) and a 4♦ on the floor.
+  const state = {
+    ...scenario({ p1: "AS 2D 4H 8H 9H 9D 9C 10D 10S" }, "4D"),
+    builds: [makeBuild("p2", ["3D AH"])],
+  };
+
+  it("raises it to 9 with your A (you hold 9s)", () => {
+    const next = raiseBuild(state, "p1", "A-spades", "build-p2", ["4-diamonds"]);
+    expect(next.builds).toEqual([{ id: "build-p2", value: 9, ownerId: "p1", sets: [cards("3D AH 4D AS")] }]);
+    expect(next.tableCards).toEqual([]);
+  });
+
+  it("raises it to 10 with your 2 (you hold 10s)", () => {
+    const next = raiseBuild(state, "p1", "2-diamonds", "build-p2", ["4-diamonds"]);
+    expect(next.builds).toEqual([{ id: "build-p2", value: 10, ownerId: "p1", sets: [cards("3D AH 4D 2D")] }]);
+  });
+
+  it("captures both with your 4 instead", () => {
+    const next = captureCards(state, "p1", "4-hearts", ["4-diamonds"], ["build-p2"]);
+    expect(ids(next.capturePiles.p1)).toEqual(["3-diamonds", "A-hearts", "4-diamonds", "4-hearts"]);
+  });
+
+  it("explains why the 8 can't be used: 4 + 4 + 8 is over 10", () => {
+    expect(getRaiseBuildError(state, "p1", "8-hearts", "build-p2", ["4-diamonds"])).toBe(
+      "That would make 16. A build can't be worth more than 10.",
+    );
   });
 });

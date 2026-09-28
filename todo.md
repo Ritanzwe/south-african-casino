@@ -78,6 +78,8 @@ Mark items with `[x]` when done.
 - [x] 2026-09-28: a top card is never taken on its own; only with a matching floor build (floor N, floor cards making N, or a build of N): captured together with it, or built into a new build of N (Examples 1–4 in bugReport.test.ts)
 - [x] 2026-09-28: continuing your own build: ADD TO MY BUILD / STEAL INTO MY BUILD aim at your build without clicking it; your build counts as the floor build for other players' top cards; online selections no longer reset on unrelated updates
 - [x] 2026-09-28 (screenshot): when the floor already makes N, a build can use another player's top card as part of a sum (floor 9 + your 4 + their top 5 = build of 9); hint shows the real build value
+- [x] 2026-09-28 (screenshot 1): a capture can use another player's top card as part of a sum when it also takes a floor build of the value (your build of 9 + floor 6 + their top 3 with your 9); CAPTURE WITH MY BUILD when your build isn't clicked; the 6 and the 3 light up; the hint no longer shows a steal error for a capture
+- [x] 2026-09-28 (screenshot 2): their build of 4 + floor 4 + your A (or 2) raise into one build of 9 (or 10), checked with tests; the over-10 message now says what the build would make
 
 ## Open questions (ask before the stage that needs them)
 - None right now.

@@ -85,16 +85,22 @@ export function getActions(state: GameState, playerId: string, selection: Select
     actions.push({ label: "DRIFT", move: { action: "DRIFT", cardId } });
   }
 
+  const ownBuild = getOwnedBuild(state, playerId);
   if (!onlyHandCard) {
     const capture: Move = { action: "CAPTURE", cardId, tableCardIds, buildIds, pileCardIds };
+    // When the cards can't be captured on their own, but can together with the player's own build
+    // of the same value (it's the floor build their top card needs, or it's their last card of that
+    // value), the build is taken too without having to click it.
+    const withOwnBuild: Move = { ...capture, buildIds: ownBuild ? [ownBuild.id] : [] };
     if (isLegal(capture)) {
       actions.push({ label: "CAPTURE", move: capture });
+    } else if (buildIds.length === 0 && ownBuild?.value === handCard.value && isLegal(withOwnBuild)) {
+      actions.push({ label: "CAPTURE WITH MY BUILD", move: withOwnBuild });
     }
   }
 
   // Adding to a build, or stealing a top card into it, aims at the selected build or, when no
   // build is selected, at the player's own build, so continuing your build needs no extra click.
-  const ownBuild = getOwnedBuild(state, playerId);
   const target = buildIds.length === 1 ? findBuild(state, buildIds[0]) : buildIds.length === 0 ? ownBuild : undefined;
   if (target && target.ownerId === playerId) {
     if (pileCardIds.length === 0) {
@@ -158,8 +164,9 @@ function describeSelection(state: GameState, playerId: string, selection: Select
   const looseCards = state.tableCards.filter((card) => tableCardIds.includes(card.id));
   const capturable = looseCards.length === 0 || splitIntoGroups(looseCards, handCard.value) !== null;
 
-  if (pileCardIds.length === 1 && target?.ownerId === playerId) {
-    // A top card with your own build: stealing it into the build.
+  if (pileCardIds.length === 1 && target?.ownerId === playerId && handCard.value !== target.value) {
+    // A top card with your own build: stealing it into the build. (With a card of the build's
+    // value, capturing is the likelier aim, so the capture's reason is shown.)
     attempted = { action: "STEAL", cardId, buildId: target.id, stolenCardId: pileCardIds[0], tableCardIds };
   } else if (selectedBuild && pileCardIds.length === 0 && handCard.value !== selectedBuild.value) {
     // A build of a different value: adding to your own, or raising someone else's.

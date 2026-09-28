@@ -14,27 +14,35 @@ export function getCaptureGroups(state: GameState, cardValue: number): Card[][] 
 
 /**
  * Ids of the cards a card of this value could capture, e.g. to highlight them: loose table cards
- * and, when `playerId` is given, the other players' top capture-pile cards of the same value
- * (only if the floor also has something of that value to capture, see getCaptureError).
+ * and, when `playerId` is given, the groups with other players' top cards (see getTopCardGroups).
  */
 export function getCapturableCardIds(state: GameState, cardValue: number, playerId?: string): Set<string> {
-  const groups = getCaptureGroups(state, cardValue);
-  const ids = new Set(groups.flatMap((group) => group.map((card) => card.id)));
-  const floorHasValue = groups.length > 0 || state.builds.some((build) => build.value === cardValue);
-  if (playerId && floorHasValue) {
-    for (const topCard of getMatchingTopCards(state, playerId, cardValue)) {
-      ids.add(topCard.id);
+  const ids = new Set(getCaptureGroups(state, cardValue).flatMap((group) => group.map((card) => card.id)));
+  if (playerId) {
+    for (const group of getTopCardGroups(state, playerId, cardValue)) {
+      for (const card of group) {
+        ids.add(card.id);
+      }
     }
   }
   return ids;
 }
 
 /**
- * The other players' top capture-pile cards that a card of this value can capture: only those
- * of exactly the same value. (A top card is never part of a group that adds up.)
+ * The groups with other players' top capture-pile cards that a card of this value could capture:
+ * a top card of the same value, or top cards adding up to it with loose table cards. A top card is
+ * only taken together with a floor build of the value (see getCaptureError), so a group is only
+ * listed when a build of the value, or a group of loose cards it doesn't use, is left for that.
  */
-export function getMatchingTopCards(state: GameState, playerId: string, cardValue: number): Card[] {
-  return getStealableCards(state, playerId).filter((card) => card.value === cardValue);
+export function getTopCardGroups(state: GameState, playerId: string, cardValue: number): Card[][] {
+  const topCards = getStealableCards(state, playerId);
+  const hasBuild = state.builds.some((build) => build.value === cardValue);
+  const floorGroups = getCaptureGroups(state, cardValue);
+  return findGroupsAddingUpTo([...state.tableCards, ...topCards], cardValue).filter(
+    (group) =>
+      group.some((card) => topCards.includes(card)) &&
+      (hasBuild || floorGroups.some((floorGroup) => floorGroup.every((card) => !group.includes(card)))),
+  );
 }
 
 /** Ids of the builds a card of this value could capture (any build with the same value). */
@@ -46,8 +54,10 @@ export function getCapturableBuildIds(state: GameState, cardValue: number): Set<
  * Explains why this capture isn't allowed, or returns null if it is.
  * `cardId` is the card played from the hand. It can take loose table cards (in one group or
  * several, each adding up to the card), any builds worth the same as the card, and other
- * players' top capture-pile cards (`pileCardIds`) of exactly the same value. A top card is
- * never taken on its own: the same capture must take floor cards or a build of that value.
+ * players' top capture-pile cards (`pileCardIds`). A top card is never taken on its own: the
+ * same capture must take a floor build of the card's value (a build of it, or floor cards that
+ * make it on their own). Then the top card can match the card, or be part of a group that adds
+ * up to it (your 9 takes your build of 9 plus a floor 6 with their top 3).
  */
 export function getCaptureError(
   state: GameState,
@@ -90,14 +100,16 @@ export function getCaptureError(
     }
   }
 
-  if (getPileCards(state, pileCardIds).some((card) => card.value !== playedCard.value)) {
-    return "A top card of a capture pile can only be captured by a card of the same value.";
-  }
-  if (pileCardIds.length > 0 && tableCardIds.length === 0 && buildIds.length === 0) {
-    return `You can't take another player's top card on its own. There must be ${valueWithArticle(playedCard.value)} on the floor (a card, cards that add up to it, or a build) that you capture with it.`;
-  }
   const looseCards = getLooseCards(state, tableCardIds);
-  if (looseCards.length > 0 && !splitIntoGroups(looseCards, playedCard.value)) {
+  if (pileCardIds.length > 0) {
+    // Another player's top card needs a floor build of this value in the same capture.
+    const takesFloorBuild = buildIds.length > 0 || findGroupsAddingUpTo(looseCards, playedCard.value).length > 0;
+    if (!takesFloorBuild) {
+      return `You can't take another player's top card on its own. There must be ${valueWithArticle(playedCard.value)} on the floor (a card, cards that add up to it, or a build) that you capture with it.`;
+    }
+  }
+  const groupCards = [...looseCards, ...getPileCards(state, pileCardIds)];
+  if (groupCards.length > 0 && !splitIntoGroups(groupCards, playedCard.value)) {
     return `Those cards don't add up to ${playedCard.value}. Each group you capture must add up to ${playedCard.value}.`;
   }
   return getKeepCardError(state, playerId, cardId, buildIds);

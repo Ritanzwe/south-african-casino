@@ -5,7 +5,7 @@ import type { GameState } from "../models/GameState";
 import type { Move } from "../models/Move";
 import type { BotLevel, Player } from "../models/Player";
 import { getAddToBuildError, getCreateBuildError, getRaiseBuildError } from "../rules/BuildRules";
-import { getCaptureError, getMatchingTopCards } from "../rules/CaptureRules";
+import { getCaptureError, getTopCardGroups } from "../rules/CaptureRules";
 import { getDriftError } from "../rules/DriftRules";
 import { SOUTH_AFRICAN_CASINO_RULES as RULES, isSupportedPlayerCount } from "../rules/SouthAfricanCasinoRules";
 import { getStealableCards } from "../rules/PileRules";
@@ -166,25 +166,44 @@ export function getLegalMoves(state: GameState, playerId: string): Move[] {
 function candidateMoves(state: GameState, playerId: string): Move[] {
   const ids = (cards: Card[]) => cards.map((card) => card.id);
   const moves: Move[] = [];
+  const topCards = getStealableCards(state, playerId);
+  const topIds = new Set(ids(topCards));
 
   for (const card of getPlayer(state, playerId).hand) {
     moves.push({ action: "DRIFT", cardId: card.id });
 
-    // Capture each group of table cards, each matching build, and each build with each group,
-    // each with and without the other players' top cards of the same value (their top 10 for a 10).
-    const matchingTops = ids(getMatchingTopCards(state, playerId, card.value));
-    const capture = (tableCardIds: string[], buildIds?: string[]): Move[] => {
-      const move: Move = { action: "CAPTURE", cardId: card.id, tableCardIds, ...(buildIds ? { buildIds } : {}) };
-      return matchingTops.length > 0 ? [move, { ...move, pileCardIds: matchingTops }] : [move];
-    };
+    // Capture each group of table cards, each matching build, and each build with each group.
+    // Each of those is a floor build of the value, so another player's top card can come too:
+    // on its own when it matches (their 10 for a 10), or in a group with more table cards.
     const groups = findGroupsAddingUpTo(state.tableCards, card.value).map(ids);
-    for (const group of groups) {
-      moves.push(...capture(group));
-    }
-    for (const build of state.builds.filter((b) => b.value === card.value)) {
-      moves.push(...capture([], [build.id]));
-      for (const group of groups) {
-        moves.push(...capture(group, [build.id]));
+    const topGroups = getTopCardGroups(state, playerId, card.value);
+    const floorBuilds: { tableCardIds: string[]; buildIds?: string[] }[] = [
+      ...groups.map((group) => ({ tableCardIds: group })),
+      ...state.builds
+        .filter((build) => build.value === card.value)
+        .flatMap((build) => [
+          { tableCardIds: [], buildIds: [build.id] },
+          ...groups.map((group) => ({ tableCardIds: group, buildIds: [build.id] })),
+        ]),
+    ];
+    for (const floorBuild of floorBuilds) {
+      const capture: Move = {
+        action: "CAPTURE",
+        cardId: card.id,
+        tableCardIds: floorBuild.tableCardIds,
+        ...(floorBuild.buildIds ? { buildIds: floorBuild.buildIds } : {}),
+      };
+      moves.push(capture);
+      for (const topGroup of topGroups) {
+        const moreTableCardIds = ids(topGroup.filter((c) => !topIds.has(c.id)));
+        if (moreTableCardIds.some((id) => floorBuild.tableCardIds.includes(id))) {
+          continue;
+        }
+        moves.push({
+          ...capture,
+          tableCardIds: [...floorBuild.tableCardIds, ...moreTableCardIds],
+          pileCardIds: ids(topGroup.filter((c) => topIds.has(c.id))),
+        });
       }
     }
 
@@ -199,7 +218,7 @@ function candidateMoves(state: GameState, playerId: string): Move[] {
     // Build with another player's top card: floor cards that already make the value, plus this card
     // and the top card, together in one set (floor 9 + this 4 + their 5) or in sets of their own
     // (floor 6 + 4, this 10 and their 10), with more floor cards filling a set where needed.
-    for (const top of getStealableCards(state, playerId)) {
+    for (const top of topCards) {
       for (let value = Math.max(2, top.value, card.value); value <= RULES.maxBuildValue; value++) {
         for (const floorGroup of findGroupsAddingUpTo(state.tableCards, value)) {
           const otherFloorCards = state.tableCards.filter((c) => !floorGroup.includes(c));
@@ -242,7 +261,7 @@ function candidateMoves(state: GameState, playerId: string): Move[] {
 
       // Steal another player's top card into the build: with this card in the same set
       // (hand 7 + stolen A = 8), or with this card as its own set (hand 8, and stolen A + loose 7).
-      for (const stolen of getStealableCards(state, playerId)) {
+      for (const stolen of topCards) {
         const steal = (tableCardIds: string[]): Move => ({
           action: "STEAL",
           cardId: card.id,

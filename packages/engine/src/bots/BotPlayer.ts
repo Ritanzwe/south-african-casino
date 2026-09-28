@@ -6,7 +6,7 @@ import type { GameState } from "../models/GameState";
 import type { Move } from "../models/Move";
 import type { BotLevel } from "../models/Player";
 import { findGroupsAddingUpTo } from "../cards/groups";
-import { getCapturableCardIds, getMatchingTopCards } from "../rules/CaptureRules";
+import { getCapturableCardIds, getTopCardGroups } from "../rules/CaptureRules";
 import { getStealableCards } from "../rules/PileRules";
 import { SOUTH_AFRICAN_CASINO_RULES as RULES } from "../rules/SouthAfricanCasinoRules";
 import { randomInt, type RandomFn } from "../utils/random";
@@ -70,25 +70,35 @@ export function chooseBotMove(state: GameState, botId: string, level: BotLevel, 
 }
 
 /**
- * For each card, the capture that takes as much as it can in one go: every matching build,
- * every other player's top card of the same value and, working from the most valuable group
- * down, every group of loose cards that doesn't overlap.
+ * For each card, the capture that takes as much as it can in one go: every matching build and,
+ * working from the most valuable group down, every group of loose cards that doesn't overlap,
+ * then every group with other players' top cards (the same value, or a sum with more loose cards).
  * (getLegalMoves lists single groups, so these bigger captures are added here.)
  */
 function biggestCaptures(state: GameState, botId: string): Move[] {
   const moves: Move[] = [];
+  const topCards = getStealableCards(state, botId);
   for (const card of getPlayer(state, botId).hand) {
     const taken: Card[] = [];
-    const groups = findGroupsAddingUpTo(state.tableCards, card.value).sort((a, b) => totalWorth(b) - totalWorth(a));
-    for (const group of groups) {
-      if (group.every((c) => !taken.includes(c))) {
-        taken.push(...group);
+    const take = (groups: Card[][]) => {
+      for (const group of groups.sort((a, b) => totalWorth(b) - totalWorth(a))) {
+        if (group.every((c) => !taken.includes(c))) {
+          taken.push(...group);
+        }
       }
-    }
+    };
+    // Loose groups first: top cards can only come with a floor build of the value.
+    take(findGroupsAddingUpTo(state.tableCards, card.value));
+    take(getTopCardGroups(state, botId, card.value));
     const buildIds = state.builds.filter((build) => build.value === card.value).map((build) => build.id);
-    const pileCardIds = getMatchingTopCards(state, botId, card.value).map((c) => c.id);
-    const move: Move = { action: "CAPTURE", cardId: card.id, tableCardIds: taken.map((c) => c.id), buildIds, pileCardIds };
-    if (taken.length + buildIds.length + pileCardIds.length > 0 && getMoveError(state, botId, move) === null) {
+    const move: Move = {
+      action: "CAPTURE",
+      cardId: card.id,
+      tableCardIds: taken.filter((c) => !topCards.includes(c)).map((c) => c.id),
+      buildIds,
+      pileCardIds: taken.filter((c) => topCards.includes(c)).map((c) => c.id),
+    };
+    if (taken.length + buildIds.length > 0 && getMoveError(state, botId, move) === null) {
       moves.push(move);
     }
   }
