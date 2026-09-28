@@ -1,0 +1,14 @@
+# Render Blueprint (https://render.com/docs/blueprint-spec).
+# One free web service runs the game server, which also hands out the built React app,
+# so the whole game lives at a single address you can share.
+services:
+  - type: web
+    name: south-african-casino
+    runtime: node
+    plan: free
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_VERSION
+        value: "24"

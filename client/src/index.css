@@ -1,0 +1,7 @@
+@import "tailwindcss";
+
+@layer base {
+  body {
+    @apply bg-emerald-950 text-white antialiased;
+  }
+}
