@@ -76,6 +76,7 @@ Mark items with `[x]` when done.
 - [x] 2026-09-28: a matching card captures other players' top capture-pile cards too (e.g. a 10 takes the floor 10 and an opponent's top 10), for every value
 - [x] 2026-09-28: top cards are only captured by the same value (never part of a sum); another player's build can't take same-value sets or steals (only raised if weak and under 10, or captured)
 - [x] 2026-09-28: a top card is never taken on its own; only with a matching floor build (floor N, floor cards making N, or a build of N): captured together with it, or built into a new build of N (Examples 1–4 in bugReport.test.ts)
+- [x] 2026-09-28: continuing your own build: ADD TO MY BUILD / STEAL INTO MY BUILD aim at your build without clicking it; your build counts as the floor build for other players' top cards; online selections no longer reset on unrelated updates
 
 ## Open questions (ask before the stage that needs them)
 - None right now.

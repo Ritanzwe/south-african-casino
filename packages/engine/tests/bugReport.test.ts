@@ -11,6 +11,7 @@ import {
   isStrongBuild,
   parseMove,
   raiseBuild,
+  stealIntoBuild,
 } from "../src";
 import { cards, ids, makeBuild, scenario, withPiles } from "./helpers";
 
@@ -173,6 +174,40 @@ describe("Top cards need a matching floor build", () => {
       value: 10,
       pileCardIds: ["10-hearts"],
     });
+  });
+});
+
+// "Build continuation": a player with an active build keeps strengthening it over several turns,
+// using any loose floor cards (whoever played them) and other players' top cards.
+describe("Continuing your own build", () => {
+  it("grows a strong build of 10 with a 5 another player drifted and your 5", () => {
+    const state = { ...scenario({ p1: "5H 10S" }, "5C"), builds: [makeBuild("p1", ["6D 4D", "10D"])] };
+    const next = createBuild(state, "p1", "5-hearts", ["5-clubs"], 10);
+    expect(next.builds).toEqual([
+      { id: "build-p1", value: 10, ownerId: "p1", sets: [cards("6D 4D"), cards("10D"), cards("5C 5H")] },
+    ]);
+    expect(next.capturePiles.p1).toEqual([]);
+  });
+
+  it("uses their top 10 because your build of 10 is already on the floor", () => {
+    // Floor 5 alone doesn't make 10, but your own build of 10 is the floor build that allows it.
+    const state = withPiles({ ...scenario({ p1: "5H 10S" }, "5C"), builds: [makeBuild("p1", ["6D 4D"])] }, { p2: "10C" });
+    const next = createBuild(state, "p1", "5-hearts", ["5-clubs"], 10, ["10-clubs"]);
+    expect(next.builds[0].sets).toEqual([cards("6D 4D"), cards("5C 5H"), cards("10C")]);
+    expect(next.capturePiles.p2).toEqual([]);
+  });
+
+  it("can also steal their top 10 into your build with your second 10", () => {
+    const state = withPiles({ ...scenario({ p1: "10H 10S" }, ""), builds: [makeBuild("p1", ["6D 4D"])] }, { p2: "10C" });
+    const next = stealIntoBuild(state, "p1", "10-hearts", "build-p1", "10-clubs", []);
+    expect(next.builds[0].sets).toEqual([cards("6D 4D"), cards("10H"), cards("10C")]);
+  });
+
+  it("still needs a build or floor cards making the value when you own no build", () => {
+    const state = withPiles(scenario({ p1: "10H 10S" }, "5C"), { p2: "10C" });
+    expect(getCreateBuildError(state, "p1", "10-hearts", ["5-clubs"], 10, ["10-clubs"])).toBe(
+      "To use another player's top card, the floor cards must already make 10 on their own (like 6 + 4 for a 10).",
+    );
   });
 });
 

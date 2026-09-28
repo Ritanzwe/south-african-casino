@@ -129,7 +129,10 @@ export function getCreateBuildError(
     if (getPileCards(state, pileCardIds).some((card) => card.value !== value)) {
       return `Another player's top card can only go into a build of its own value.`;
     }
-    if (findGroupsAddingUpTo(looseCards, value).length === 0) {
+    // The floor must already make the value: either the chosen floor cards on their own, or a
+    // build of that value the player already owns (the new sets then join it).
+    const ownsBuildOfValue = getOwnedBuild(state, playerId)?.value === value;
+    if (!ownsBuildOfValue && findGroupsAddingUpTo(looseCards, value).length === 0) {
       return `To use another player's top card, the floor cards must already make ${value} on their own (like 6 + 4 for a 10).`;
     }
   }

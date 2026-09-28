@@ -74,47 +74,60 @@ const OTHER_ACTION_BUTTON =
 const HEADER_BUTTON = "cursor-pointer rounded-lg border border-white/20 px-3 py-1.5 text-sm hover:bg-white/10";
 
 /** The moves the current selection allows. The engine decides what is legal; this only asks it. */
-function getActions(state: GameState, playerId: string, selection: Selection): Action[] {
+export function getActions(state: GameState, playerId: string, selection: Selection): Action[] {
   const { handCard, tableCardIds, buildIds, pileCardIds } = selection;
   const cardId = handCard.id;
   const isLegal = (move: Move) => getMoveError(state, playerId, move) === null;
   const actions: Action[] = [];
+  const onlyHandCard = tableCardIds.length === 0 && buildIds.length === 0 && pileCardIds.length === 0;
 
-  if (tableCardIds.length === 0 && buildIds.length === 0 && pileCardIds.length === 0) {
-    if (canDrift(state, playerId, cardId)) {
-      actions.push({ label: "DRIFT", move: { action: "DRIFT", cardId } });
+  if (onlyHandCard && canDrift(state, playerId, cardId)) {
+    actions.push({ label: "DRIFT", move: { action: "DRIFT", cardId } });
+  }
+
+  if (!onlyHandCard) {
+    const capture: Move = { action: "CAPTURE", cardId, tableCardIds, buildIds, pileCardIds };
+    if (isLegal(capture)) {
+      actions.push({ label: "CAPTURE", move: capture });
     }
-    return actions;
   }
 
-  const capture: Move = { action: "CAPTURE", cardId, tableCardIds, buildIds, pileCardIds };
-  if (isLegal(capture)) {
-    actions.push({ label: "CAPTURE", move: capture });
+  // Adding to a build, or stealing a top card into it, aims at the selected build or, when no
+  // build is selected, at the player's own build, so continuing your build needs no extra click.
+  const ownBuild = getOwnedBuild(state, playerId);
+  const target = buildIds.length === 1 ? findBuild(state, buildIds[0]) : buildIds.length === 0 ? ownBuild : undefined;
+  if (target && target.ownerId === playerId) {
+    if (pileCardIds.length === 0) {
+      const addToBuild: Move = { action: "ADD_TO_BUILD", cardId, buildId: target.id, tableCardIds };
+      if (isLegal(addToBuild)) {
+        actions.push({ label: "ADD TO MY BUILD", move: addToBuild });
+      }
+    } else if (pileCardIds.length === 1) {
+      const steal: Move = { action: "STEAL", cardId, buildId: target.id, stolenCardId: pileCardIds[0], tableCardIds };
+      if (isLegal(steal)) {
+        actions.push({ label: "STEAL INTO MY BUILD", move: steal });
+      }
+    }
   }
 
+  // New builds. A build of the value the player already builds would just join their build,
+  // which the buttons above already offer, so it isn't repeated.
   if (buildIds.length === 0 && tableCardIds.length > 0) {
+    const alreadyAdding = actions.some((action) => action.move.action === "ADD_TO_BUILD" || action.move.action === "STEAL");
     for (const value of getPossibleBuildValues(state, playerId, cardId, tableCardIds, pileCardIds)) {
+      if (alreadyAdding && value === ownBuild?.value) {
+        continue;
+      }
       const build: Move = { action: "BUILD", cardId, tableCardIds, value };
       actions.push({ label: `BUILD ${value}`, move: pileCardIds.length > 0 ? { ...build, pileCardIds } : build });
     }
   }
 
-  if (buildIds.length === 1) {
-    const build = findBuild(state, buildIds[0])!;
-    if (pileCardIds.length === 0) {
-      const addToBuild: Move = { action: "ADD_TO_BUILD", cardId, buildId: build.id, tableCardIds };
-      if (isLegal(addToBuild)) {
-        actions.push({ label: "ADD TO BUILD", move: addToBuild });
-      }
-      const raise: Move = { action: "RAISE_BUILD", cardId, buildId: build.id, tableCardIds };
-      if (isLegal(raise)) {
-        actions.push({ label: `RAISE TO ${getRaisedValue(state, build, handCard, tableCardIds)}`, move: raise });
-      }
-    } else if (pileCardIds.length === 1) {
-      const steal: Move = { action: "STEAL", cardId, buildId: build.id, stolenCardId: pileCardIds[0], tableCardIds };
-      if (isLegal(steal)) {
-        actions.push({ label: "STEAL INTO BUILD", move: steal });
-      }
+  // Raising another player's weak build (it has to be selected).
+  if (buildIds.length === 1 && pileCardIds.length === 0 && target && target.ownerId !== playerId) {
+    const raise: Move = { action: "RAISE_BUILD", cardId, buildId: target.id, tableCardIds };
+    if (isLegal(raise)) {
+      actions.push({ label: `RAISE TO ${getRaisedValue(state, target, handCard, tableCardIds)}`, move: raise });
     }
   }
   return actions;
@@ -139,27 +152,31 @@ function describeSelection(state: GameState, playerId: string, selection: Select
   }
   // Nothing is possible: explain using the rule that most likely applies.
   let attempted: Move = { action: "CAPTURE", cardId, tableCardIds, buildIds, pileCardIds };
-  const build = buildIds.length === 1 ? findBuild(state, buildIds[0]) : undefined;
-  if (build && handCard.value !== build.value) {
-    // A different value: they're stealing into a build, adding to their own, or raising someone else's.
-    if (pileCardIds.length === 1) {
-      attempted = { action: "STEAL", cardId, buildId: build.id, stolenCardId: pileCardIds[0], tableCardIds };
-    } else if (pileCardIds.length === 0) {
-      attempted =
-        build.ownerId === playerId
-          ? { action: "ADD_TO_BUILD", cardId, buildId: build.id, tableCardIds }
-          : { action: "RAISE_BUILD", cardId, buildId: build.id, tableCardIds };
-    }
-  }
-  if (buildIds.length === 0 && tableCardIds.length > 0) {
-    // Table cards that can't be captured with this card are probably meant for a build: of the
-    // chosen top card's value if there is one, otherwise of everything added up.
-    const looseCards = state.tableCards.filter((card) => tableCardIds.includes(card.id));
+  const selectedBuild = buildIds.length === 1 ? findBuild(state, buildIds[0]) : undefined;
+  const ownBuild = getOwnedBuild(state, playerId);
+  const target = selectedBuild ?? (buildIds.length === 0 ? ownBuild : undefined);
+  const looseCards = state.tableCards.filter((card) => tableCardIds.includes(card.id));
+  const capturable = looseCards.length === 0 || splitIntoGroups(looseCards, handCard.value) !== null;
+
+  if (pileCardIds.length === 1 && target?.ownerId === playerId) {
+    // A top card with your own build: stealing it into the build.
+    attempted = { action: "STEAL", cardId, buildId: target.id, stolenCardId: pileCardIds[0], tableCardIds };
+  } else if (selectedBuild && pileCardIds.length === 0 && handCard.value !== selectedBuild.value) {
+    // A build of a different value: adding to your own, or raising someone else's.
+    attempted =
+      selectedBuild.ownerId === playerId
+        ? { action: "ADD_TO_BUILD", cardId, buildId: selectedBuild.id, tableCardIds }
+        : { action: "RAISE_BUILD", cardId, buildId: selectedBuild.id, tableCardIds };
+  } else if (buildIds.length === 0 && tableCardIds.length > 0 && !capturable) {
+    // Table cards that can't be captured with this card are meant for a build: your own build if
+    // you have one, otherwise a new build of the chosen top card's value or of everything added up.
     const buildValue =
       pileCardIds.length > 0
         ? getPileCards(state, pileCardIds)[0].value
         : handCard.value + looseCards.reduce((sum, card) => sum + card.value, 0);
-    if (!splitIntoGroups(looseCards, handCard.value) && buildValue <= RULES.maxBuildValue) {
+    if (ownBuild && pileCardIds.length === 0) {
+      attempted = { action: "ADD_TO_BUILD", cardId, buildId: ownBuild.id, tableCardIds };
+    } else if (buildValue <= RULES.maxBuildValue) {
       attempted = { action: "BUILD", cardId, tableCardIds, value: buildValue, pileCardIds };
     }
   }
@@ -193,8 +210,9 @@ export function GameScreen({
   const [error, setError] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
 
-  // Start with a clean selection whenever the game changes (a move was played).
-  useEffect(() => clearSelection(), [state]);
+  // Start with a clean selection once a move has been played (the log grows) or a new game starts.
+  // Other updates, such as another player reconnecting online, keep the current selection.
+  useEffect(() => clearSelection(), [state.log.length, state.roundNumber]);
 
   const currentPlayer = getPlayer(state, state.currentPlayerId);
   const viewer = viewerId ? getPlayer(state, viewerId) : undefined;

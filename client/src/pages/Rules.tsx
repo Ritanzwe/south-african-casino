@@ -108,6 +108,9 @@ export function Rules({ onClose }: RulesProps) {
             </li>
             <li>
               <b>Add to a build:</b> add a new set of the same value to your build, e.g. 6 + 2 onto a build of 8.
+              You don't have to capture it straight away: keep strengthening it over as many turns as you like,
+              using any cards on the floor, whoever played them. Pick your card and the floor cards (or another
+              player's top card) and press ADD TO MY BUILD or STEAL INTO MY BUILD.
             </li>
             <li>
               <b>Raise:</b> add one card from your hand (plus table cards, if you like) to an opponent's weak build,

@@ -57,6 +57,8 @@ Items marked **(default)** were not asked explicitly. Change them here if they a
 
 ### Your own build
 - You **can** add another set with the same value. This uses a hand card, optionally with loose table cards, and makes the build strong.
+- A build **keeps growing** over as many turns as you like, weak or strong; you never have to capture it straight away. Any loose floor card can be used, **whoever played it**. The floor is shared.
+- Your build of N counts as the floor build that lets you use another player's top card of N (stolen into your build, or included when you build more N). (Added 2026-09-28.)
 - You **cannot** raise the value of your own build, whether it is weak or strong.
 
 ### An opponent's build
