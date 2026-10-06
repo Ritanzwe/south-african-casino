@@ -82,6 +82,7 @@ Mark items with `[x]` when done.
 - [x] 2026-09-28 (screenshot 2): their build of 4 + floor 4 + your A (or 2) raise into one build of 9 (or 10), checked with tests; the over-10 message now says what the build would make
 - [x] 2026-09-28: capturing another player's top card with a card of its value also takes the same-value cards lying directly under it (floor 8 + their top 8 + the 8 under it, with your 8); CAPTURE includes them automatically and the hint says so; building and stealing still use only the top card
 - [x] 2026-09-28 (screenshot 3): "topping up" Aces: your A on a floor A makes a build of Aces (worth 1, strong) while you hold another A; BUILD ACES button; builds now go from 1 to 10
+- [x] 2026-10-06 (screenshot 16:13): picking your own build together with another player's weak build now offers RAISE (it joins your build) instead of a capture error; client tests for the buttons in each screenshot (`client/tests/actions.test.ts`, part of `npm test`)
 
 ## Open questions (ask before the stage that needs them)
 - None right now.

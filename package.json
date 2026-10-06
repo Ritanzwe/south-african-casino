@@ -15,7 +15,7 @@
     "dev": "concurrently --names server,client --prefix-colors blue,green \"npm run dev --workspace server\" \"npm run dev --workspace client\"",
     "build": "npm run build --workspace client",
     "start": "npm run start --workspace server",
-    "test": "npm run test --workspace packages/engine && npm run test --workspace server",
+    "test": "npm run test --workspace packages/engine && npm run test --workspace server && npm run test --workspace client",
     "test:watch": "npm run test:watch --workspace packages/engine",
     "typecheck": "npm run typecheck --workspaces --if-present"
   },

@@ -22,6 +22,7 @@ import {
   mustDrift,
   splitIntoGroups,
   valueWithArticle,
+  type Build as BuildData,
   type Card,
   type GameState,
   type Move,
@@ -136,14 +137,25 @@ export function getActions(state: GameState, playerId: string, selection: Select
     }
   }
 
-  // Raising another player's weak build (it has to be selected).
-  if (buildIds.length === 1 && pileCardIds.length === 0 && target && target.ownerId !== playerId) {
-    const raise: Move = { action: "RAISE_BUILD", cardId, buildId: target.id, tableCardIds };
+  // Raising another player's weak build (it has to be selected, maybe together with your own build).
+  const raiseTarget = getRaiseTarget(state, playerId, buildIds);
+  if (raiseTarget && pileCardIds.length === 0) {
+    const raise: Move = { action: "RAISE_BUILD", cardId, buildId: raiseTarget.id, tableCardIds };
     if (isLegal(raise)) {
-      actions.push({ label: `RAISE TO ${getRaisedValue(state, target, handCard, tableCardIds)}`, move: raise });
+      actions.push({ label: `RAISE TO ${getRaisedValue(state, raiseTarget, handCard, tableCardIds)}`, move: raise });
     }
   }
   return actions;
+}
+
+/**
+ * The other player's build a selection would raise: the one selected build that isn't yours. Your
+ * own build may be selected with it, since a raise to your build's value joins the two into one.
+ */
+function getRaiseTarget(state: GameState, playerId: string, buildIds: string[]): BuildData | undefined {
+  const builds = buildIds.map((buildId) => findBuild(state, buildId)).filter((build) => build !== undefined);
+  const othersBuilds = builds.filter((build) => build.ownerId !== playerId);
+  return othersBuilds.length === 1 && builds.length - othersBuilds.length <= 1 ? othersBuilds[0] : undefined;
 }
 
 /** What clicking the cards under another player's top card says: which of them come along with it, or that they can't be taken. */
@@ -186,6 +198,7 @@ function describeSelection(state: GameState, playerId: string, selection: Select
   const selectedBuild = buildIds.length === 1 ? findBuild(state, buildIds[0]) : undefined;
   const ownBuild = getOwnedBuild(state, playerId);
   const target = selectedBuild ?? (buildIds.length === 0 ? ownBuild : undefined);
+  const raiseTarget = getRaiseTarget(state, playerId, buildIds);
   const looseCards = state.tableCards.filter((card) => tableCardIds.includes(card.id));
   const capturable = looseCards.length === 0 || splitIntoGroups(looseCards, handCard.value) !== null;
 
@@ -199,6 +212,9 @@ function describeSelection(state: GameState, playerId: string, selection: Select
       selectedBuild.ownerId === playerId
         ? { action: "ADD_TO_BUILD", cardId, buildId: selectedBuild.id, tableCardIds }
         : { action: "RAISE_BUILD", cardId, buildId: selectedBuild.id, tableCardIds };
+  } else if (raiseTarget && pileCardIds.length === 0 && handCard.value !== raiseTarget.value) {
+    // Someone else's build together with your own: raising theirs to join yours.
+    attempted = { action: "RAISE_BUILD", cardId, buildId: raiseTarget.id, tableCardIds };
   } else if (buildIds.length === 0 && tableCardIds.length > 0 && !capturable) {
     // Table cards that can't be captured with this card are meant for a build: your own build if
     // you have one, otherwise a new build of the value the chosen cards make sets of (floor 9 +
